@@ -136,12 +136,7 @@ const APExam = () => {
           designation: existingRegistration.organizationDetails?.designation ?? prev.designation,
           examDate: existingRegistration.examSlotSelection?.examDate ?? prev.examDate,
         }));
-        setCurrentStep(isPaid ? 1 : 2);
-        if (isPaid) {
-          setSubmitError(
-            "Registration is already completed and paid for this email. New registration is disabled.",
-          );
-        }
+        setCurrentStep(2);
       } catch {
         // If not found, continue new registration flow.
       }
@@ -160,11 +155,6 @@ const APExam = () => {
   }, []);
 
   const submitRegistration = useCallback(async () => {
-    if (isRegistrationDisabled) {
-      throw new Error(
-        "Registration is already completed and paid for this email. New registration is disabled.",
-      );
-    }
     const payload = {
       personalInformation: {
         firstName: formData.firstName.trim(),
@@ -201,7 +191,7 @@ const APExam = () => {
     setRegistrationId(response.registrationId);
     setSubmitError(null);
     goToStep(2);
-  }, [formData, goToStep, isRegistrationDisabled, registrationId]);
+  }, [formData, goToStep, registrationId]);
 
   return (
     <DashboardLayout>

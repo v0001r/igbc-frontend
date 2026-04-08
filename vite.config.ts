@@ -18,20 +18,4 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  build: {
-    // Default 500 kB warning is strict; dashboard-style apps often exceed it.
-    chunkSizeWarningLimit: 900,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (!id.includes("node_modules")) return;
-          if (id.includes("recharts") || id.includes("d3-")) return "recharts";
-          if (id.includes("framer-motion")) return "framer-motion";
-          if (id.includes("@radix-ui")) return "radix-ui";
-          if (id.includes("lucide-react")) return "lucide";
-          return "vendor";
-        },
-      },
-    },
-  },
 }));

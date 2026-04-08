@@ -98,38 +98,6 @@ export type SelectableSlotsResponse = {
   feeAmount: number;
 };
 
-export type UserExamListResponse = {
-  email: string;
-  exams: Array<{
-    registrationId: string;
-    examId?: string;
-    examDate: string;
-    examTime: string;
-    validUntil: string;
-    paymentStatus: "success";
-    feeAmount: number;
-    status: "upcoming" | "past";
-    rescheduleCount: number;
-    rescheduleFeeAmount?: number;
-    actions: { reschedule: boolean };
-  }>;
-};
-
-export type RescheduleApExamPayload = {
-  type: "prepone" | "postpone";
-  examDate: string;
-  transactionId?: string;
-};
-
-export type RescheduleOptionsResponse = {
-  registrationId: string;
-  examId?: string;
-  currentExamDate: string;
-  type: "prepone" | "postpone";
-  feeAmount: number;
-  selectableDates: string[];
-};
-
 export async function registerApExam(payload: RegisterApExamPayload) {
   return request<ApExamRegistrationResponse>("/ap-exam/register", {
     method: "POST",
@@ -172,28 +140,5 @@ export async function updateApExamPayment(
 export async function getSelectableApExamSlots(year: number, month: number) {
   return request<SelectableSlotsResponse>(`/ap-exam/slots/${year}/${month}`, {
     method: "GET",
-  });
-}
-
-export async function getUserApExamList(email: string) {
-  return request<UserExamListResponse>(`/ap-exam/list?email=${encodeURIComponent(email)}`, {
-    method: "GET",
-  });
-}
-
-export async function getApExamRescheduleOptions(
-  registrationId: string,
-  type: "prepone" | "postpone",
-) {
-  return request<RescheduleOptionsResponse>(
-    `/ap-exam/${registrationId}/reschedule/options?type=${encodeURIComponent(type)}`,
-    { method: "GET" },
-  );
-}
-
-export async function rescheduleApExam(registrationId: string, payload: RescheduleApExamPayload) {
-  return request<unknown>(`/ap-exam/${registrationId}/reschedule`, {
-    method: "POST",
-    body: JSON.stringify(payload),
   });
 }
