@@ -14,6 +14,7 @@ interface Props {
   onNext: () => Promise<void>;
   submitError: string | null;
   setSubmitError: (error: string | null) => void;
+  isRegistrationDisabled?: boolean;
 }
 
 const idProofTypes = ["Passport", "Aadhaar Card", "Driving License", "Voter ID", "PAN Card"];
@@ -53,7 +54,14 @@ const ID_PROOF_ERROR_MESSAGES: Record<string, string> = {
   "Driving License": "Driving License must be in format: AP21 20210012345",
 };
 
-export const ExamStep1Registration = ({ formData, updateFormData, onNext, submitError, setSubmitError }: Props) => {
+export const ExamStep1Registration = ({
+  formData,
+  updateFormData,
+  onNext,
+  submitError,
+  setSubmitError,
+  isRegistrationDisabled = false,
+}: Props) => {
   const [errors, setErrors] = useState<Errors>({});
   const [touched, setTouched] = useState<Set<string>>(new Set());
   const [hasSubmitted, setHasSubmitted] = useState(false);
@@ -276,6 +284,7 @@ export const ExamStep1Registration = ({ formData, updateFormData, onNext, submit
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (isRegistrationDisabled) return;
     setHasSubmitted(true);
     if (!validateAll()) return;
     setIsSubmitting(true);
@@ -702,8 +711,16 @@ export const ExamStep1Registration = ({ formData, updateFormData, onNext, submit
         </div>
 
         {/* Next Button */}
-        <Button type="submit" disabled={isSubmitting} className="w-full rounded-xl h-12 text-sm font-semibold">
-          {isSubmitting ? "Submitting..." : "Next: Review Details"}
+        <Button
+          type="submit"
+          disabled={isSubmitting || isRegistrationDisabled}
+          className="w-full rounded-xl h-12 text-sm font-semibold"
+        >
+          {isRegistrationDisabled
+            ? "Registration Disabled (Already Paid)"
+            : isSubmitting
+              ? "Submitting..."
+              : "Next: Review Details"}
         </Button>
       </div>
       </div>

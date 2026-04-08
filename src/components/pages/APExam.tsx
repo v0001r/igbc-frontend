@@ -60,6 +60,7 @@ const APExam = () => {
   const [formData, setFormData] = useState<ExamFormData>(initialFormData);
   const [registrationId, setRegistrationId] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isRegistrationDisabled, setIsRegistrationDisabled] = useState(false);
 
   useEffect(() => {
     const hydrateFormAndCheckExisting = async () => {
@@ -113,6 +114,8 @@ const APExam = () => {
       try {
         const existingRegistration = await getApExamRegistrationByEmail(resolvedEmail);
         setRegistrationId(existingRegistration.registrationId);
+        const isPaid = existingRegistration.paymentStatus === "success";
+        setIsRegistrationDisabled(isPaid);
         setFormData((prev) => ({
           ...prev,
           firstName: existingRegistration.personalInformation?.firstName ?? prev.firstName,
@@ -133,7 +136,12 @@ const APExam = () => {
           designation: existingRegistration.organizationDetails?.designation ?? prev.designation,
           examDate: existingRegistration.examSlotSelection?.examDate ?? prev.examDate,
         }));
-        setCurrentStep(2);
+        setCurrentStep(isPaid ? 1 : 2);
+        if (isPaid) {
+          setSubmitError(
+            "Registration is already completed and paid for this email. New registration is disabled.",
+          );
+        }
       } catch {
         // If not found, continue new registration flow.
       }
@@ -152,6 +160,11 @@ const APExam = () => {
   }, []);
 
   const submitRegistration = useCallback(async () => {
+    if (isRegistrationDisabled) {
+      throw new Error(
+        "Registration is already completed and paid for this email. New registration is disabled.",
+      );
+    }
     const payload = {
       personalInformation: {
         firstName: formData.firstName.trim(),
@@ -188,7 +201,7 @@ const APExam = () => {
     setRegistrationId(response.registrationId);
     setSubmitError(null);
     goToStep(2);
-  }, [formData, goToStep, registrationId]);
+  }, [formData, goToStep, isRegistrationDisabled, registrationId]);
 
   return (
     <DashboardLayout>
@@ -221,6 +234,7 @@ const APExam = () => {
                 onNext={submitRegistration}
                 submitError={submitError}
                 setSubmitError={setSubmitError}
+                isRegistrationDisabled={isRegistrationDisabled}
               />
             </motion.div>
           )}
