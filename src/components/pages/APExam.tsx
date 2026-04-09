@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { motion, AnimatePresence } from "framer-motion";
-import { ExamStep1Registration } from "@/components/exam/ExamStep1Registration";
-import { ExamStep2Review } from "@/components/exam/ExamStep2Review";
-import { ExamStep3Payment } from "@/components/exam/ExamStep3Payment";
-import { ExamStepProgress } from "@/components/exam/ExamStepProgress";
+import { ExamStep1Registration } from "@/components/Exam/ExamStep1Registration";
+import { ExamStep2Review } from "@/components/Exam/ExamStep2Review";
+import { ExamStep3Payment } from "@/components/Exam/ExamStep3Payment";
+import { ExamStepProgress } from "@/components/Exam/ExamStepProgress";
 import { GraduationCap } from "lucide-react";
 import {
   getApExamRegistrationByEmail,
