@@ -1,246 +1,254 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { motion } from "framer-motion";
-import {
-  Search, MapPin, Building2, Filter, ChevronDown, Mail, Phone, Award,
-  Leaf, Users, BookOpen, Shield, BadgePercent, Sprout, Globe, ChevronRight,
-  ExternalLink
-} from "lucide-react";
+import { ExternalLink, Mail, Search } from "lucide-react";
+import { getCurrentUser } from "@/lib/auth";
 
-// IGBC Membership info page data
-const membershipTypes = [
-  { type: "Corporate Membership", desc: "For organizations committed to green buildings", members: "2,500+" },
-  { type: "Institutional Membership", desc: "For academic and research institutions", members: "800+" },
-  { type: "Individual Membership", desc: "For professionals in green building sector", members: "18,000+" },
-  { type: "Student Membership", desc: "For students pursuing green building studies", members: "4,000+" },
+type MembershipType = "Founding Membership" | "Annual Membership" | "Individual Membership";
+
+type Member = {
+  id: string;
+  logo: string | null;
+  name: string;
+  type: MembershipType;
+  website: string;
+  category: string;
+  contactEmail: string;
+};
+
+const members: Member[] = [
+  { id: "m1", logo: "AN", name: "Ananta Architects", type: "Founding Membership", website: "https://ananta-architects.example.com", category: "Architects", contactEmail: "contact@ananta-architects.example.com" },
+  { id: "m2", logo: "BE", name: "Blue Earth Engineers", type: "Annual Membership", website: "https://blueearth.example.com", category: "Engineers", contactEmail: "hello@blueearth.example.com" },
+  { id: "m3", logo: "GD", name: "Greenline Developers", type: "Annual Membership", website: "https://greenline-dev.example.com", category: "Builders & Developers", contactEmail: "office@greenline-dev.example.com" },
+  { id: "m4", logo: "EC", name: "EcoCore Consulting", type: "Individual Membership", website: "https://ecocore.example.com", category: "Service Consultants", contactEmail: "team@ecocore.example.com" },
+  { id: "m5", logo: "SM", name: "SunMatrix Materials", type: "Founding Membership", website: "https://sunmatrix.example.com", category: "Materials & Equipment Manufacturers", contactEmail: "sales@sunmatrix.example.com" },
+  { id: "m6", logo: "AE", name: "Apex Energy Auditors", type: "Annual Membership", website: "https://apex-auditors.example.com", category: "Energy Auditors", contactEmail: "support@apex-auditors.example.com" },
+  { id: "m7", logo: "UP", name: "UrbanPlanners Studio", type: "Individual Membership", website: "https://urbanplanners.example.com", category: "Architects/Planners (<10 Professionals)", contactEmail: "info@urbanplanners.example.com" },
+  { id: "m8", logo: "NC", name: "NexGen Corporate Realty", type: "Annual Membership", website: "https://nexgen-realty.example.com", category: "Corporate", contactEmail: "corp@nexgen-realty.example.com" },
+  { id: "m9", logo: "BM", name: "BuildMax Infra", type: "Founding Membership", website: "https://buildmax.example.com", category: "Builders & Developers", contactEmail: "projects@buildmax.example.com" },
+  { id: "m10", logo: "RA", name: "Reform Architects", type: "Annual Membership", website: "https://reform-arch.example.com", category: "Architects", contactEmail: "contact@reform-arch.example.com" },
+  { id: "m11", logo: "CF", name: "CrestField Engineers", type: "Founding Membership", website: "https://crestfield.example.com", category: "Engineers", contactEmail: "hello@crestfield.example.com" },
+  { id: "m12", logo: null, name: "Indira Narayan", type: "Individual Membership", website: "https://indira-narayan.example.com", category: "Individual Consultant", contactEmail: "indira.narayan@example.com" },
 ];
 
-const benefits = [
-  { icon: BookOpen, title: "Access to Resources", desc: "Green building publications, technical papers, and research" },
-  { icon: Users, title: "Networking", desc: "Connect with 25,000+ industry professionals" },
-  { icon: Shield, title: "Policy Influence", desc: "Participate in shaping green building policies" },
-  { icon: BadgePercent, title: "Discounts", desc: "Special rates on IGBC events and training programs" },
-  { icon: Sprout, title: "Sustainability", desc: "Drive sustainable change in the Indian building sector" },
-  { icon: Award, title: "Recognition", desc: "IGBC membership recognized nationally" },
+const membershipTabs: Array<"All" | MembershipType> = [
+  "All",
+  "Founding Membership",
+  "Annual Membership",
+  "Individual Membership",
 ];
 
-const feeTable = [
-  { category: "Individual Membership", annual: "₹1,500", gst: "₹270", total: "₹1,770" },
-  { category: "Professional Membership", annual: "₹15,000", gst: "₹2,700", total: "₹17,700" },
-  { category: "Corporate Membership", annual: "₹50,000", gst: "₹9,000", total: "₹59,000" },
-  { category: "Institutional Membership", annual: "₹25,000", gst: "₹4,500", total: "₹29,500" },
-  { category: "Student Membership", annual: "₹500", gst: "₹90", total: "₹590" },
-];
-
-const chapters = [
-  { id: 1, place: "Ahmedabad", type: "Chapter", contacts: "Ar. Rahul Shah\nahmedabad@igbc.in\n+91-79-26400100" },
-  { id: 2, place: "Bangalore", type: "Chapter", contacts: "Er. Vikram M\nbangalore@igbc.in\n+91-80-25551234" },
-  { id: 3, place: "Chennai", type: "Chapter", contacts: "Dr. Priya S\nchennai@igbc.in\n+91-44-28201234" },
-  { id: 4, place: "Delhi NCR", type: "Chapter", contacts: "Ar. Amit K\ndelhi@igbc.in\n+91-11-41234567" },
-  { id: 5, place: "Hyderabad", type: "HQ", contacts: "IGBC Secretariat\nigbc@cii.in\n+91-40-44185111" },
-  { id: 6, place: "Kolkata", type: "Chapter", contacts: "Er. Siddharth J\nkolkata@igbc.in\n+91-33-22801234" },
-  { id: 7, place: "Mumbai", type: "Chapter", contacts: "Ar. Kavita M\nmumbai@igbc.in\n+91-22-24981234" },
-  { id: 8, place: "Pune", type: "Chapter", contacts: "Dr. Anil V\npune@igbc.in\n+91-20-25671234" },
-];
+const pageSize = 6;
 
 const MembershipDirectory = () => {
-  const [showChapters, setShowChapters] = useState(false);
+  const user = getCurrentUser();
+  const canContact = Boolean(user);
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("All Categories");
+  const [activeType, setActiveType] = useState<"All" | MembershipType>("All");
+  const [activeLetter, setActiveLetter] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+
+  const categories = useMemo(
+    () => ["All Categories", ...new Set(members.map((member) => member.category))],
+    [],
+  );
+
+  const filteredMembers = useMemo(() => {
+    return members
+      .filter((member) =>
+        query.trim() ? member.name.toLowerCase().includes(query.trim().toLowerCase()) : true,
+      )
+      .filter((member) => (category === "All Categories" ? true : member.category === category))
+      .filter((member) => (activeType === "All" ? true : member.type === activeType))
+      .filter((member) =>
+        activeLetter ? member.name.toUpperCase().startsWith(activeLetter) : true,
+      )
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [activeLetter, activeType, category, query]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredMembers.length / pageSize));
+  const paginatedMembers = useMemo(() => {
+    const startIndex = (page - 1) * pageSize;
+    return filteredMembers.slice(startIndex, startIndex + pageSize);
+  }, [filteredMembers, page]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [query, category, activeType, activeLetter]);
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
-        {/* Hero */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <div className="rounded-2xl bg-gradient-to-r from-primary to-primary/80 p-8 text-primary-foreground">
-            <div className="flex items-center gap-2 mb-3">
-              <Leaf className="h-6 w-6" />
-              <span className="text-sm font-semibold opacity-80">INDIAN GREEN BUILDING COUNCIL</span>
+      <div className="space-y-6">
+        <section className="rounded-2xl border border-border bg-card p-5 shadow-card sm:p-6">
+          <h1 className="text-xl font-semibold text-foreground sm:text-2xl">Membership Directory</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Browse IGBC member organizations and individuals by membership type, category, or alphabetical index.
+          </p>
+
+          <div className="mt-5 grid gap-3 md:grid-cols-[1fr_280px]">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search by organization name"
+                className="h-10 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
             </div>
-            <h1 className="text-2xl font-bold sm:text-3xl">IGBC Membership</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed opacity-80">
-              IGBC Membership is open to all those who are interested in the green building movement in India.
-              Members include architects, developers, building owners, energy consultants, corporations, academic and research institutions, and more.
-            </p>
-            <div className="mt-6 flex gap-3">
-              <a href="/become-a-member" className="inline-flex items-center gap-2 rounded-xl bg-primary-foreground px-5 py-2.5 text-sm font-semibold text-primary shadow-sm transition hover:opacity-90">
-                Become a Member <ArrowRight />
-              </a>
-              <button onClick={() => setShowChapters(!showChapters)} className="inline-flex items-center gap-2 rounded-xl border border-primary-foreground/30 px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary-foreground/10">
-                <Globe className="h-4 w-4" /> View Chapters
+            <select
+              value={category}
+              onChange={(event) => setCategory(event.target.value)}
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            >
+              {categories.map((item) => (
+                <option key={item} value={item}>
+                  {item}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            {membershipTabs.map((tab) => {
+              const active = activeType === tab;
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setActiveType(tab)}
+                  className={`rounded-full px-3 py-1.5 text-sm transition ${
+                    active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {tab}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-1.5">
+            {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((letter) => {
+              const active = activeLetter === letter;
+              return (
+                <button
+                  key={letter}
+                  onClick={() => setActiveLetter((current) => (current === letter ? null : letter))}
+                  className={`h-8 min-w-8 rounded-md border px-2 text-xs font-medium transition ${
+                    active
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-background text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {letter}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-card">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/30 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                  <th className="px-4 py-3">Logo</th>
+                  <th className="px-4 py-3">Name</th>
+                  <th className="px-4 py-3">Type</th>
+                  <th className="px-4 py-3">Website</th>
+                  <th className="px-4 py-3">Category</th>
+                  <th className="px-4 py-3 text-center">Contact</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedMembers.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                      No members found for selected filters.
+                    </td>
+                  </tr>
+                )}
+
+                {paginatedMembers.map((member) => (
+                  <tr key={member.id} className="border-b border-border/60 last:border-b-0 hover:bg-muted/20">
+                    <td className="px-4 py-3">
+                      {member.logo ? (
+                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary-muted text-xs font-semibold text-primary">
+                          {member.logo}
+                        </span>
+                      ) : (
+                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-muted text-xs font-semibold text-muted-foreground">
+                          N/A
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 font-medium text-foreground">{member.name}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{member.type}</td>
+                    <td className="px-4 py-3">
+                      <a
+                        href={member.website}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-primary hover:underline"
+                      >
+                        Visit <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{member.category}</td>
+                    <td className="px-4 py-3 text-center">
+                      {canContact ? (
+                        <a
+                          href={`mailto:${member.contactEmail}`}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                          aria-label={`Contact ${member.name}`}
+                        >
+                          <Mail className="h-4 w-4" />
+                        </a>
+                      ) : (
+                        <button
+                          disabled
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/60 text-muted-foreground/50"
+                          aria-label="Login required to contact"
+                        >
+                          <Mail className="h-4 w-4" />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex items-center justify-between border-t border-border bg-background px-4 py-3 text-sm">
+            <span className="text-muted-foreground">
+              Page: {totalPages === 0 ? 0 : page} / {totalPages}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                disabled={page === 1}
+                className="rounded-md border border-border px-3 py-1.5 text-sm text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                disabled={page === totalPages}
+                className="rounded-md border border-border px-3 py-1.5 text-sm text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Next
               </button>
             </div>
           </div>
-        </motion.div>
-
-        <div className="grid gap-8 lg:grid-cols-[1fr_340px]">
-          <div className="space-y-8">
-            {/* Who can become a member */}
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="rounded-2xl border border-border bg-card p-6 shadow-card">
-              <h2 className="text-lg font-semibold text-foreground">🏛️ Who Can Become a Member?</h2>
-              <p className="mt-2 text-sm text-muted-foreground">IGBC membership is open to:</p>
-              <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {["Architects & Engineers", "Real Estate Developers", "Building Owners & Operators", "Energy & Environment Consultants", "Corporate Organizations", "Academic & Research Institutions", "Government Bodies", "Students & Individuals"].map((item) => (
-                  <li key={item} className="flex items-center gap-2 text-sm text-foreground">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary-muted text-primary text-xs">✓</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
-
-            {/* Types of Membership */}
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="rounded-2xl border border-border bg-card p-6 shadow-card">
-              <h2 className="text-lg font-semibold text-foreground">📋 Types of Membership</h2>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                {membershipTypes.map((m) => (
-                  <div key={m.type} className="rounded-xl border border-border p-4 transition hover:border-primary/30 hover:shadow-md">
-                    <h3 className="text-sm font-semibold text-foreground">{m.type}</h3>
-                    <p className="mt-1 text-xs text-muted-foreground">{m.desc}</p>
-                    <p className="mt-2 text-xs font-medium text-primary">{m.members} members</p>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* Benefits */}
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="rounded-2xl border border-border bg-card p-6 shadow-card">
-              <h2 className="text-lg font-semibold text-foreground">🌿 Key Benefits</h2>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {benefits.map((b) => (
-                  <div key={b.title} className="flex items-start gap-3 rounded-xl border border-border p-4 transition hover:border-primary/30">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary-muted">
-                      <b.icon className="h-4 w-4 text-primary" strokeWidth={1.5} />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-semibold text-foreground">{b.title}</h3>
-                      <p className="text-xs text-muted-foreground">{b.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-
-            {/* Validity */}
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="rounded-2xl border border-border bg-card p-6 shadow-card">
-              <h2 className="text-lg font-semibold text-foreground">📅 Validity</h2>
-              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                IGBC offers the following period of enrollment for new members:
-              </p>
-              <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-start gap-2"><span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" /> Individual Membership is for 1 year</li>
-                <li className="flex items-start gap-2"><span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" /> Corporate Membership is for 1 year</li>
-                <li className="flex items-start gap-2"><span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" /> Institutional Membership is for 3 years</li>
-                <li className="flex items-start gap-2"><span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" /> Student Membership is for 1 year</li>
-              </ul>
-            </motion.div>
-
-            {/* Fee Table */}
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="rounded-2xl border border-border bg-card p-6 shadow-card">
-              <h2 className="text-lg font-semibold text-foreground">💰 Membership Fees (Effective from 1 January 2026)</h2>
-              <div className="mt-4 overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-xs font-medium text-muted-foreground">
-                      <th className="px-4 py-3 text-left">Membership Category</th>
-                      <th className="px-4 py-3 text-right">Annual Fee</th>
-                      <th className="px-4 py-3 text-right">GST (18%)</th>
-                      <th className="px-4 py-3 text-right font-semibold">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {feeTable.map((row) => (
-                      <tr key={row.category} className="border-b border-border/50 transition hover:bg-muted/30">
-                        <td className="px-4 py-3 font-medium text-foreground">{row.category}</td>
-                        <td className="px-4 py-3 text-right font-mono text-muted-foreground">{row.annual}</td>
-                        <td className="px-4 py-3 text-right font-mono text-muted-foreground">{row.gst}</td>
-                        <td className="px-4 py-3 text-right font-mono font-semibold text-primary">{row.total}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </motion.div>
-
-            {/* Chapters */}
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="rounded-2xl border border-border bg-card p-6 shadow-card">
-              <h2 className="text-lg font-semibold text-foreground">📍 IGBC Chapters</h2>
-              <div className="mt-4 overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border text-xs font-medium text-muted-foreground">
-                      <th className="px-4 py-3 text-left">#</th>
-                      <th className="px-4 py-3 text-left">Place</th>
-                      <th className="px-4 py-3 text-left">Type</th>
-                      <th className="px-4 py-3 text-left">Contact Details</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {chapters.map((ch) => (
-                      <tr key={ch.id} className="border-b border-border/50 transition hover:bg-muted/30">
-                        <td className="px-4 py-3 text-muted-foreground">{ch.id}</td>
-                        <td className="px-4 py-3 font-medium text-foreground">{ch.place}</td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${ch.type === "HQ" ? "bg-primary-muted text-primary" : "bg-muted text-muted-foreground"}`}>
-                            {ch.type}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-xs text-muted-foreground whitespace-pre-line">{ch.contacts}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Right sidebar */}
-          <div className="space-y-5">
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="sticky top-20 space-y-5">
-              {/* Login / Register */}
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
-                <h3 className="mb-3 text-sm font-semibold text-foreground">Login / Register</h3>
-                <input placeholder="Email or Member ID" className="mb-2 h-10 w-full rounded-lg border border-input bg-background px-3 text-sm placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
-                <input type="password" placeholder="Password" className="mb-3 h-10 w-full rounded-lg border border-input bg-background px-3 text-sm placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
-                <button className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition">Login</button>
-                <a href="/register" className="mt-3 block text-center text-xs text-primary hover:underline">Create an Account</a>
-              </div>
-
-              {/* Quick Links */}
-              <div className="rounded-2xl border border-border bg-card p-5 shadow-card">
-                <h3 className="mb-3 text-sm font-semibold text-foreground">Quick Links</h3>
-                <div className="space-y-2">
-                  {[
-                    { label: "Become a Member", href: "/become-a-member" },
-                    { label: "Register a Project", href: "/register-project" },
-                    { label: "AP Exam", href: "/ap-exam" },
-                    { label: "NEST & NEST+", href: "/nest-plus" },
-                  ].map((link) => (
-                    <a key={link.label} href={link.href} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground transition hover:bg-muted hover:text-foreground">
-                      <ChevronRight className="h-3.5 w-3.5" /> {link.label}
-                    </a>
-                  ))}
-                </div>
-              </div>
-
-              {/* Contact */}
-              <div className="rounded-2xl bg-primary-muted p-5">
-                <h3 className="mb-2 text-sm font-semibold text-primary">Need Help?</h3>
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  For membership queries, contact IGBC at{" "}
-                  <span className="font-medium text-foreground">igbc@cii.in</span> or call{" "}
-                  <span className="font-medium text-foreground">+91 40 4418 5111</span>
-                </p>
-              </div>
-            </motion.div>
-          </div>
-        </div>
+        </section>
       </div>
     </DashboardLayout>
   );
 };
-
-function ArrowRight() {
-  return <ChevronRight className="h-4 w-4" />;
-}
 
 export default MembershipDirectory;

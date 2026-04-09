@@ -1,153 +1,332 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { motion } from "framer-motion";
-import { Calendar, Clock, MapPin, Award, Download, CheckCircle2, AlertCircle, Timer, FileText } from "lucide-react";
-
-const upcomingExams = [
-  { title: "IGBC AP Exam", date: "April 15, 2026", time: "10:00 AM – 12:00 PM", venue: "IGBC Center, Hyderabad", status: "confirmed", hallTicket: true },
-  { title: "IGBC AP – O&M", date: "May 10, 2026", time: "2:00 PM – 4:30 PM", venue: "Online Proctored", status: "pending", hallTicket: false },
-];
-
-const pastExams = [
-  { title: "IGBC AP Exam", date: "Jan 20, 2026", score: 82, result: "pass", certificate: true },
-  { title: "IGBC AP – Interiors", date: "Oct 5, 2025", score: 65, result: "fail", certificate: false },
-  { title: "IGBC AP Exam", date: "Jun 15, 2025", score: 78, result: "pass", certificate: true },
-];
+import { AlertCircle, Calendar, Clock, IndianRupee, RefreshCw, X } from "lucide-react";
+import { getCurrentUser } from "@/lib/auth";
+import {
+  getMyApExamListings,
+  rescheduleApExamListing,
+  type ApExamListing,
+} from "@/lib/apExam";
+import { useToast } from "@/hooks/use-toast";
 
 const MyExams = () => {
-  const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
+  const { toast } = useToast();
+  const currentUser = getCurrentUser();
+  const [exams, setExams] = useState<ApExamListing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedExam, setSelectedExam] = useState<ApExamListing | null>(null);
+  const [mode, setMode] = useState<"prepone" | "postpone">("postpone");
+  const [newDate, setNewDate] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const load = async () => {
+      const email = currentUser?.email;
+      if (!email) {
+        setExams([]);
+        setLoading(false);
+        return;
+      }
+      try {
+        const result = await getMyApExamListings(email);
+        setExams(result);
+      } catch (error) {
+        toast({
+          title: "Unable to load exams",
+          description: error instanceof Error ? error.message : "Please try again",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    void load();
+  }, [currentUser?.email, toast]);
+
+  const saturdayDates = useMemo(() => {
+    if (!selectedExam) {
+      return [];
+    }
+    const examDate = new Date(selectedExam.examDate);
+    const dates: string[] = [];
+    for (let offset = -84; offset <= 84; offset += 1) {
+      if (offset === 0) {
+        continue;
+      }
+      const candidate = new Date(examDate);
+      candidate.setDate(examDate.getDate() + offset);
+      if (candidate.getDay() !== 6) {
+        continue;
+      }
+      if (mode === "prepone" && candidate >= examDate) {
+        continue;
+      }
+      if (mode === "postpone" && candidate <= examDate) {
+        continue;
+      }
+      dates.push(candidate.toISOString().split("T")[0]);
+    }
+    return dates.sort((a, b) => a.localeCompare(b));
+  }, [mode, selectedExam]);
+
+  const openReschedule = (exam: ApExamListing) => {
+    setSelectedExam(exam);
+    setMode("postpone");
+    setNewDate("");
+  };
+
+  const closeReschedule = () => {
+    setSelectedExam(null);
+    setMode("postpone");
+    setNewDate("");
+    setSubmitting(false);
+  };
+
+  const isPastExam = (date: string) => {
+    const examDate = new Date(date);
+    const today = new Date();
+    examDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0);
+    return examDate < today;
+  };
+
+  const handleReschedule = async () => {
+    if (!selectedExam) {
+      return;
+    }
+    if (!newDate) {
+      toast({
+        title: "Date required",
+        description: "Please select a new exam date",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const fee = mode === "prepone" ? 590 : 0;
+    setSubmitting(true);
+    try {
+      const updated = await rescheduleApExamListing(selectedExam.listingId, {
+        mode,
+        newExamDate: newDate,
+        fee,
+      });
+      setExams((prev) =>
+        prev.map((item) => (item.listingId === selectedExam.listingId ? updated : item)),
+      );
+      toast({
+        title: "Exam rescheduled",
+        description:
+          mode === "prepone"
+            ? "Prepone request submitted. Rs 590 is applicable."
+            : "Postpone request submitted.",
+      });
+      closeReschedule();
+    } catch (error) {
+      setSubmitting(false);
+      toast({
+        title: "Unable to reschedule",
+        description: error instanceof Error ? error.message : "Please try again",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <DashboardLayout>
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
         <h1 className="text-2xl font-bold text-foreground">My Exams</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Track your exam schedule and results</p>
+        <p className="mt-1 text-sm text-muted-foreground">Registered AP exams for your account</p>
       </motion.div>
 
-      {/* Stats */}
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[
-          { label: "Total Exams", value: "5", icon: FileText, color: "text-primary" },
-          { label: "Passed", value: "3", icon: CheckCircle2, color: "text-primary" },
-          { label: "Upcoming", value: "2", icon: Timer, color: "text-ocean" },
-          { label: "Certifications", value: "2", icon: Award, color: "text-accent" },
-        ].map((s, i) => (
-          <motion.div
-            key={s.label}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.08 }}
-            className="flex items-center gap-3 rounded-2xl bg-card p-4 shadow-card"
-          >
-            <s.icon className={`h-5 w-5 ${s.color}`} strokeWidth={1.5} />
-            <div>
-              <p className="text-xl font-bold text-foreground">{s.value}</p>
-              <p className="text-xs text-muted-foreground">{s.label}</p>
-            </div>
-          </motion.div>
-        ))}
-      </div>
+      <div className="mt-6 space-y-4">
+        {loading && (
+          <div className="rounded-2xl bg-card p-6 text-sm text-muted-foreground shadow-card">
+            Loading registered exams...
+          </div>
+        )}
 
-      {/* Tabs */}
-      <div className="mt-8 flex gap-1 rounded-xl bg-muted p-1">
-        {(["upcoming", "past"] as const).map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`flex-1 rounded-lg px-4 py-2.5 text-sm font-medium capitalize transition-colors ${
-              tab === t ? "bg-card text-foreground shadow-card" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {t} Exams
-          </button>
-        ))}
-      </div>
+        {!loading && exams.length === 0 && (
+          <div className="rounded-2xl bg-card p-6 text-sm text-muted-foreground shadow-card">
+            No AP exam registrations found for your account.
+          </div>
+        )}
 
-      <motion.div key={tab} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
-        {tab === "upcoming" && (
-          <div className="mt-6 space-y-4">
-            {upcomingExams.map((exam, i) => (
+        {!loading &&
+          exams.map((exam, i) => {
+            const isPast = isPastExam(exam.examDate);
+            const examDateLabel = new Date(exam.examDate).toLocaleDateString("en-IN", {
+              weekday: "long",
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            });
+
+            return (
               <motion.div
-                key={exam.title + exam.date}
+                key={exam.listingId}
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.1 }}
+                transition={{ delay: i * 0.08 }}
                 className="flex flex-col gap-4 rounded-2xl bg-card p-6 shadow-card sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-base font-semibold text-foreground">{exam.title}</h3>
-                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      exam.status === "confirmed" ? "bg-primary-muted text-primary" : "bg-peach/20 text-peach-foreground"
-                    }`}>
-                      {exam.status === "confirmed" ? "Confirmed" : "Pending"}
+                    <h3 className="text-base font-semibold text-foreground">IGBC AP Exam</h3>
+                    <span className="rounded-full bg-primary-muted px-2.5 py-0.5 text-xs font-medium text-primary">
+                      {exam.status === "rescheduled" ? "Rescheduled" : "Registered"}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{exam.date}</span>
-                    <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{exam.time}</span>
-                    <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{exam.venue}</span>
+                    <span className="flex items-center gap-1">
+                      <Calendar className="h-3.5 w-3.5" />
+                      {examDateLabel}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" />
+                      {exam.examTime}
+                    </span>
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Exam ID: <span className="font-mono">{exam.examId}</span>
+                  </p>
                 </div>
-                <div className="flex gap-2">
-                  {exam.hallTicket && (
-                    <button className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground hover:opacity-90">
-                      <Download className="h-3.5 w-3.5" /> Hall Ticket
-                    </button>
-                  )}
-                  <button className="rounded-xl border px-4 py-2.5 text-xs font-medium text-foreground hover:bg-muted">
-                    Reschedule
+
+                <button
+                  onClick={() => openReschedule(exam)}
+                  disabled={isPast}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border px-4 py-2.5 text-xs font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" /> Reschedule Exam
+                </button>
+              </motion.div>
+            );
+          })}
+      </div>
+
+      {selectedExam && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-lg rounded-2xl bg-card p-5 shadow-card-hover"
+          >
+            <div className="mb-4 flex items-start justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-foreground">Reschedule Exam</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Select prepone or postpone and choose a Saturday date.
+                </p>
+              </div>
+              <button onClick={closeReschedule} className="rounded-md p-1 text-muted-foreground hover:bg-muted">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="rounded-xl border border-border p-3">
+                <p className="text-xs text-muted-foreground">Current Exam Date</p>
+                <p className="mt-1 text-sm font-medium text-foreground">
+                  {new Date(selectedExam.examDate).toLocaleDateString("en-IN", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </p>
+              </div>
+
+              <div>
+                <p className="mb-2 text-xs font-medium text-foreground">Reschedule Type</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => {
+                      setMode("prepone");
+                      setNewDate("");
+                    }}
+                    className={`rounded-lg border px-3 py-2 text-sm ${
+                      mode === "prepone"
+                        ? "border-primary bg-primary-muted text-primary"
+                        : "border-border text-muted-foreground"
+                    }`}
+                  >
+                    Prepone
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMode("postpone");
+                      setNewDate("");
+                    }}
+                    className={`rounded-lg border px-3 py-2 text-sm ${
+                      mode === "postpone"
+                        ? "border-primary bg-primary-muted text-primary"
+                        : "border-border text-muted-foreground"
+                    }`}
+                  >
+                    Postpone
                   </button>
                 </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
+              </div>
 
-        {tab === "past" && (
-          <div className="mt-6 space-y-4">
-            {pastExams.map((exam, i) => (
-              <motion.div
-                key={exam.title + exam.date}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.1 }}
-                className="flex flex-col gap-4 rounded-2xl bg-card p-6 shadow-card sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${
-                    exam.result === "pass" ? "bg-primary-muted" : "bg-destructive/10"
-                  }`}>
-                    {exam.result === "pass"
-                      ? <CheckCircle2 className="h-6 w-6 text-primary" />
-                      : <AlertCircle className="h-6 w-6 text-destructive" />
-                    }
-                  </div>
-                  <div>
-                    <h3 className="text-base font-semibold text-foreground">{exam.title}</h3>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      <span>{exam.date}</span>
-                      <span>Score: <strong className={exam.result === "pass" ? "text-primary" : "text-destructive"}>{exam.score}%</strong></span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  {exam.certificate && (
-                    <button className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground hover:opacity-90">
-                      <Download className="h-3.5 w-3.5" /> Certificate
-                    </button>
-                  )}
-                  {exam.result === "fail" && (
-                    <button className="rounded-xl bg-accent px-4 py-2.5 text-xs font-semibold text-accent-foreground hover:opacity-90">
-                      Re-register
-                    </button>
-                  )}
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </motion.div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-foreground">
+                  Select New Exam Date (Saturday only)
+                </label>
+                <select
+                  value={newDate}
+                  onChange={(event) => setNewDate(event.target.value)}
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                >
+                  <option value="">Choose a date</option>
+                  {saturdayDates.map((date) => (
+                    <option key={date} value={date}>
+                      {new Date(date).toLocaleDateString("en-IN", {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </option>
+                  ))}
+                </select>
+                {saturdayDates.length === 0 && (
+                  <p className="mt-2 text-xs text-destructive">
+                    No Saturday dates available for this reschedule type.
+                  </p>
+                )}
+              </div>
+
+              <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+                <p className="flex items-center gap-1">
+                  <IndianRupee className="h-3.5 w-3.5" />
+                  Charges: {mode === "prepone" ? "Rs 590" : "No charges"}
+                </p>
+                <p className="mt-1 flex items-center gap-1">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  Prepone dates are before current date; postpone dates are after current date.
+                </p>
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={closeReschedule}
+                  className="flex-1 rounded-lg border border-border px-3 py-2 text-sm text-foreground hover:bg-muted"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => void handleReschedule()}
+                  disabled={submitting || !newDate}
+                  className="flex-1 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {submitting ? "Updating..." : "Confirm Reschedule"}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </DashboardLayout>
   );
 };

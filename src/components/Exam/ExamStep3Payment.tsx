@@ -7,7 +7,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { updateApExamPayment } from "@/lib/apExam";
+import { cachePaidApExamListing, updateApExamPayment } from "@/lib/apExam";
+import { getCurrentUser } from "@/lib/auth";
 import type { ExamFormData } from "@/components/pages/APExam";
 
 interface Props {
@@ -57,6 +58,22 @@ export const ExamStep3Payment = ({ formData, onBack, registrationId }: Props) =>
         status: "success",
         transactionId: `txn_${Date.now()}`,
       });
+      const currentUser = getCurrentUser();
+      const resolvedEmail = formData.email?.trim() || currentUser?.email || "";
+      const resolvedName =
+        `${formData.firstName} ${formData.lastName}`.trim() || currentUser?.displayName || "Candidate";
+
+      if (response.examId && resolvedEmail) {
+        cachePaidApExamListing({
+          registrationId,
+          examId: response.examId,
+          userEmail: resolvedEmail,
+          userName: resolvedName,
+          examDate: formData.examDate,
+          examTime: "11:00 AM",
+        });
+      }
+
       setExamId(response.examId ?? null);
       setProcessing(false);
       setSuccess(true);
@@ -167,19 +184,15 @@ export const ExamStep3Payment = ({ formData, onBack, registrationId }: Props) =>
             <p className="text-sm font-medium text-foreground mb-2">What's Next?</p>
             <ol className="space-y-1.5 text-xs text-muted-foreground list-decimal list-inside">
               <li>A confirmation email and SMS have been sent to {formData.email}</li>
-              <li>Download your invoice and hall ticket below</li>
+                <li>Download your invoice below</li>
               <li>Please report to the exam center by 10:30 AM</li>
             </ol>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 mt-4">
+          <div className="mt-4">
             <Button variant="outline" className="flex-1 rounded-xl h-11 gap-2">
               <Download className="h-4 w-4" />
               Download Invoice
-            </Button>
-            <Button variant="outline" className="flex-1 rounded-xl h-11 gap-2">
-              <Download className="h-4 w-4" />
-              Download Hall Ticket
             </Button>
           </div>
 

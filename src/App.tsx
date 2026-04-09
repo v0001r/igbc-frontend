@@ -49,13 +49,14 @@ const App = () => (
             <Route path="/register" element={<Register />} />
           </Route>
 
+          <Route path="/directory" element={<MembershipDirectory />} />
+
           <Route element={<RequireAuth />}>
             <Route path="/home" element={<Index />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/become-a-member" element={<BecomeAMember />} />
             <Route path="/my-membership" element={<MyMembership />} />
-            <Route path="/directory" element={<MembershipDirectory />} />
             <Route path="/ap-exam" element={<APExam />} />
             <Route path="/exams" element={<MyExams />} />
             <Route path="/projects" element={<Projects />} />
