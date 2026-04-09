@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import {
@@ -9,9 +10,10 @@ import {
   Search,
   UserPlus,
 } from "lucide-react";
+import { getCurrentUser } from "@/lib/auth";
+import { getMyApExamListings } from "@/lib/apExam";
 
-const actions = [
-  { title: "Register for AP Exam", desc: "Register for new certification", icon: FileText, color: "text-primary", path: "/ap-exam" },
+const baseActions = [
   { title: "My Exams", desc: "View exam schedule & results", icon: ClipboardList, color: "text-ocean", path: "/exams" },
   { title: "Register A Project", desc: "Submit green building project", icon: Building2, color: "text-primary", path: "/register-project" },
   { title: "Register for Nest+", desc: "Residential rating program", icon: Leaf, color: "text-sage", path: "/nest-plus" },
@@ -21,6 +23,58 @@ const actions = [
 ];
 
 export const QuickActions = () => {
+  const [hasApExamRegistration, setHasApExamRegistration] = useState(false);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const checkApExamRegistration = async () => {
+      const currentUser = getCurrentUser();
+      const email = currentUser?.email;
+
+      if (!email) {
+        if (isActive) {
+          setHasApExamRegistration(false);
+        }
+        return;
+      }
+
+      try {
+        const exams = await getMyApExamListings(email);
+        if (isActive) {
+          setHasApExamRegistration(exams.length > 0);
+        }
+      } catch {
+        if (isActive) {
+          setHasApExamRegistration(false);
+        }
+      }
+    };
+
+    void checkApExamRegistration();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  const actions = useMemo(() => {
+    if (hasApExamRegistration) {
+      return baseActions;
+    }
+
+    return [
+      {
+        title: "Register for AP Exam",
+        desc: "Register for new certification",
+        icon: FileText,
+        color: "text-primary",
+        path: "/ap-exam",
+      },
+      ...baseActions,
+    ];
+  }, [hasApExamRegistration]);
+
   return (
     <section className="mb-10">
       <h2 className="mb-4 text-lg font-semibold text-foreground">Quick Actions</h2>
