@@ -4,7 +4,24 @@ import { ArrowLeft, CreditCard, Building, Smartphone, CheckCircle2, PartyPopper,
 
 interface Step5Props {
   categoryData: { membershipType: string };
+  applicationId: string;
+  totalPayable?: number | null;
+  invoiceNumber?: string;
   onBack: () => void;
+  onSubmitPayment: (payload: {
+    paymentMode: "online" | "offline";
+    gateway: string;
+    status: "success" | "failure";
+    transactionId: string;
+    paymentMethod: string;
+    ddChequeUtrNumber?: string;
+    ifscCode?: string;
+    bankName?: string;
+    branch?: string;
+    amount: number;
+    paymentDate: string;
+    remarks?: string;
+  }) => Promise<void>;
 }
 
 const pricing: Record<string, number> = {
@@ -20,22 +37,50 @@ const onlinePaymentMethods = [
   { id: "netbanking", label: "Net Banking", icon: Building, desc: "All major banks supported" },
 ];
 
-export const Step5Payment = ({ categoryData, onBack }: Step5Props) => {
+export const Step5Payment = ({
+  categoryData,
+  applicationId,
+  totalPayable,
+  invoiceNumber,
+  onBack,
+  onSubmitPayment,
+}: Step5Props) => {
   const [paymentMode, setPaymentMode] = useState<"online" | "offline">("online");
   const [method, setMethod] = useState("card");
   const [processing, setProcessing] = useState(false);
   const [completed, setCompleted] = useState(false);
-  const total = pricing[categoryData.membershipType] || pricing.individual;
+  const total = totalPayable ?? pricing[categoryData.membershipType] ?? pricing.individual;
 
   // Offline form
   const [offlineData, setOfflineData] = useState({
-    ddNumber: "", ifscCode: "", bankName: "", bankBranch: "", amount: "", date: "", remarks: "",
+    ddNumber: "", ifscCode: "", bankName: "", bankBranch: "", date: "", remarks: "",
   });
   const updateOffline = (field: string, value: string) => setOfflineData((prev) => ({ ...prev, [field]: value }));
 
-  const handlePay = () => {
+  const handlePay = async () => {
     setProcessing(true);
-    setTimeout(() => { setProcessing(false); setCompleted(true); }, 2500);
+    try {
+      await onSubmitPayment({
+        paymentMode,
+        gateway: paymentMode === "online" ? "razorpay" : "offline",
+        status: "success",
+        transactionId: `txn_${Date.now()}`,
+        paymentMethod: paymentMode === "online" ? method : "offline_transfer",
+        ddChequeUtrNumber: offlineData.ddNumber || undefined,
+        ifscCode: offlineData.ifscCode || undefined,
+        bankName: offlineData.bankName || undefined,
+        branch: offlineData.bankBranch || undefined,
+        amount: Number(total),
+        paymentDate:
+          paymentMode === "offline"
+            ? offlineData.date || new Date().toISOString().split("T")[0]
+            : new Date().toISOString().split("T")[0],
+        remarks: offlineData.remarks || undefined,
+      });
+      setCompleted(true);
+    } finally {
+      setProcessing(false);
+    }
   };
 
   // Success state
@@ -67,7 +112,7 @@ export const Step5Payment = ({ categoryData, onBack }: Step5Props) => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{paymentMode === "online" ? "Transaction ID" : "Reference"}</p>
-                <p className="mt-1 font-mono text-sm font-bold text-foreground">TXN-{Date.now().toString().slice(-8)}</p>
+                <p className="mt-1 font-mono text-sm font-bold text-foreground">{invoiceNumber ?? `TXN-${Date.now().toString().slice(-8)}`}</p>
               </div>
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Amount</p>
@@ -179,6 +224,14 @@ export const Step5Payment = ({ categoryData, onBack }: Step5Props) => {
               {method === "card" && (
                 <div className="rounded-2xl border border-border bg-card p-6 shadow-card space-y-4">
                   <div>
+                    <label className="text-xs font-semibold text-foreground">Amount</label>
+                    <input
+                      value={`Rs ${total.toLocaleString("en-IN")}`}
+                      readOnly
+                      className="mt-1.5 w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-foreground outline-none"
+                    />
+                  </div>
+                  <div>
                     <label className="text-xs font-semibold text-foreground">Card Number</label>
                     <input placeholder="1234 5678 9012 3456" className="mt-1.5 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-emerald focus:ring-2 focus:ring-emerald/15 placeholder:text-muted-foreground/50" />
                   </div>
@@ -191,12 +244,24 @@ export const Step5Payment = ({ categoryData, onBack }: Step5Props) => {
               )}
               {method === "upi" && (
                 <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
+                  <label className="text-xs font-semibold text-foreground">Amount</label>
+                  <input
+                    value={`Rs ${total.toLocaleString("en-IN")}`}
+                    readOnly
+                    className="mt-1.5 mb-3 w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-foreground outline-none"
+                  />
                   <label className="text-xs font-semibold text-foreground">UPI ID</label>
                   <input placeholder="yourname@upi" className="mt-1.5 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-emerald focus:ring-2 focus:ring-emerald/15 placeholder:text-muted-foreground/50" />
                 </div>
               )}
               {method === "netbanking" && (
                 <div className="rounded-2xl border border-border bg-card p-6 shadow-card">
+                  <label className="text-xs font-semibold text-foreground">Amount</label>
+                  <input
+                    value={`Rs ${total.toLocaleString("en-IN")}`}
+                    readOnly
+                    className="mt-1.5 mb-3 w-full rounded-xl border border-border bg-muted px-4 py-3 text-sm text-foreground outline-none"
+                  />
                   <label className="text-xs font-semibold text-foreground">Select Your Bank</label>
                   <select className="mt-1.5 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-emerald focus:ring-2 focus:ring-emerald/15">
                     <option value="">Choose a bank...</option>
@@ -228,7 +293,7 @@ export const Step5Payment = ({ categoryData, onBack }: Step5Props) => {
                   <OfflineInput label="IFSC Code" value={offlineData.ifscCode} onChange={(v) => updateOffline("ifscCode", v)} />
                   <OfflineInput label="Bank Name *" value={offlineData.bankName} onChange={(v) => updateOffline("bankName", v)} />
                   <OfflineInput label="Branch *" value={offlineData.bankBranch} onChange={(v) => updateOffline("bankBranch", v)} />
-                  <OfflineInput label="Amount (₹) *" value={offlineData.amount} onChange={(v) => updateOffline("amount", v)} />
+                  <OfflineInput label="Amount (Rs) *" value={total.toLocaleString("en-IN")} onChange={() => undefined} readOnly />
                   <OfflineInput label="Payment Date *" value={offlineData.date} onChange={(v) => updateOffline("date", v)} type="date" />
                 </div>
                 <div>
@@ -257,7 +322,7 @@ export const Step5Payment = ({ categoryData, onBack }: Step5Props) => {
             className="inline-flex items-center gap-2 rounded-xl border border-border px-5 py-3 text-sm font-semibold text-foreground transition-all hover:bg-ghost disabled:opacity-40">
             <ArrowLeft className="h-4 w-4" /> Back
           </motion.button>
-          <motion.button whileHover={!processing ? { scale: 1.03 } : {}} whileTap={!processing ? { scale: 0.97 } : {}} onClick={handlePay} disabled={processing}
+          <motion.button whileHover={!processing ? { scale: 1.03 } : {}} whileTap={!processing ? { scale: 0.97 } : {}} onClick={() => void handlePay()} disabled={processing || !applicationId}
             className="inline-flex items-center gap-2 rounded-xl bg-emerald px-8 py-3.5 text-sm font-bold text-emerald-foreground shadow-premium transition-all disabled:opacity-60">
             {processing ? (
               <><motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }} className="h-4 w-4 rounded-full border-2 border-emerald-foreground/30 border-t-emerald-foreground" />Processing...</>
@@ -271,12 +336,33 @@ export const Step5Payment = ({ categoryData, onBack }: Step5Props) => {
   );
 };
 
-function OfflineInput({ label, value, onChange, type = "text" }: { label: string; value: string; onChange: (v: string) => void; type?: string }) {
+function OfflineInput({
+  label,
+  value,
+  onChange,
+  type = "text",
+  readOnly = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  readOnly?: boolean;
+}) {
   return (
     <div>
       <label className="text-xs font-semibold text-foreground">{label}</label>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)}
-        className="mt-1.5 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-muted-foreground/50" />
+      <input
+        type={type}
+        value={value}
+        readOnly={readOnly}
+        onChange={(e) => onChange(e.target.value)}
+        className={`mt-1.5 w-full rounded-xl border border-border px-4 py-3 text-sm outline-none placeholder:text-muted-foreground/50 ${
+          readOnly
+            ? "bg-muted text-foreground"
+            : "bg-background focus:border-primary focus:ring-2 focus:ring-primary/20"
+        }`}
+      />
     </div>
   );
 }

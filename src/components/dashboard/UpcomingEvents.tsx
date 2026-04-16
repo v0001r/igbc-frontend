@@ -1,14 +1,25 @@
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { CalendarDays, MapPin, Plus } from "lucide-react";
-
-const events = [
-  { date: "Mar 25, 2026", title: "IGBC Green Building Congress", location: "Hyderabad", online: false },
-  { date: "Apr 10, 2026", title: "AP Exam Workshop", location: "Online", online: true },
-  { date: "May 5, 2026", title: "Sustainable Design Summit", location: "Mumbai", online: false },
-  { date: "Jun 15, 2026", title: "Net Zero Buildings Webinar", location: "Online", online: true },
-];
+import { getClientEventListings, type ClientEventItem } from "@/lib/events";
 
 export const UpcomingEvents = () => {
+  const [events, setEvents] = useState<ClientEventItem[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      const data = await getClientEventListings();
+      if (active) {
+        setEvents(data);
+      }
+    };
+    void load();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <motion.section
       initial={{ opacity: 0, y: 10 }}
@@ -17,24 +28,29 @@ export const UpcomingEvents = () => {
     >
       <h2 className="mb-4 text-lg font-semibold text-foreground">Upcoming Events</h2>
       <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+        {events.length === 0 && (
+          <div className="min-w-[260px] shrink-0 rounded-2xl bg-card p-5 text-sm text-muted-foreground shadow-card">
+            No upcoming events available.
+          </div>
+        )}
         {events.map((event, i) => (
           <div
-            key={i}
+            key={event.id ?? i}
             className="min-w-[260px] shrink-0 rounded-2xl bg-card p-5 shadow-card"
           >
             <div className="mb-3 flex items-center gap-2 text-xs font-medium text-primary">
               <CalendarDays className="h-3.5 w-3.5" strokeWidth={1.5} />
-              {event.date}
+              {new Date(event.startDateTime).toLocaleDateString("en-IN", {
+                weekday: "short",
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
             </div>
             <h3 className="mb-2 text-sm font-semibold text-foreground">{event.title}</h3>
             <div className="mb-4 flex items-center gap-1.5 text-xs text-muted-foreground">
               <MapPin className="h-3 w-3" strokeWidth={1.5} />
               {event.location}
-              {event.online && (
-                <span className="ml-1 rounded-full bg-ocean/10 px-2 py-0.5 text-[10px] font-medium text-ocean">
-                  Online
-                </span>
-              )}
             </div>
             <button className="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline">
               <Plus className="h-3 w-3" strokeWidth={1.5} /> Add to Calendar

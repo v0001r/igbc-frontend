@@ -3,24 +3,33 @@ import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, User, Building2, MapPin, AlertCircle } from "lucide-react";
 
 interface ContactData {
+  showInDirectory: boolean;
   salutation: string;
   firstName: string;
+  middleName: string;
   lastName: string;
   email: string;
   mobile: string;
+  telephone: string;
   organization: string;
   designation: string;
+  department: string;
+  country: string;
   address: string;
+  addressLine2: string;
   city: string;
   state: string;
   pincode: string;
+  pan: string;
+  gst: string;
 }
 
 interface Step2Props {
   data: ContactData;
   onUpdate: (data: ContactData) => void;
-  onNext: () => void;
+  onNext: (data: ContactData) => Promise<void>;
   onBack: () => void;
+  loading?: boolean;
 }
 
 const InputField = ({
@@ -117,6 +126,7 @@ const states = [
   "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh",
   "Uttarakhand", "West Bengal",
 ];
+const countries = ["India"];
 
 const SectionCard = ({
   icon: Icon,
@@ -152,18 +162,61 @@ const SectionCard = ({
   </motion.div>
 );
 
-export const Step2Contacts = ({ data, onUpdate, onNext, onBack }: Step2Props) => {
+export const Step2Contacts = ({ data, onUpdate, onNext, onBack, loading = false }: Step2Props) => {
   const [form, setForm] = useState<ContactData>(data);
   const set = (key: keyof ContactData, val: string) => setForm((p) => ({ ...p, [key]: val }));
+  const setBool = (key: keyof ContactData, val: boolean) => setForm((p) => ({ ...p, [key]: val }));
 
-  const isValid = form.firstName && form.lastName && form.email && form.mobile;
-  const filledCount = [form.firstName, form.lastName, form.email, form.mobile, form.organization, form.designation, form.address, form.city, form.state, form.pincode].filter(Boolean).length;
-  const progress = Math.round((filledCount / 10) * 100);
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim());
+  const pincodeValid = /^\d{6}$/.test(form.pincode.trim());
+  const mobileValid = /^\d{10,15}$/.test(form.mobile.replace(/\D/g, ""));
+  const telephoneValid = /^\d{6,15}$/.test(form.telephone.replace(/\D/g, ""));
+  const panValid = /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(form.pan.trim().toUpperCase());
+  const gstValid =
+    form.gst.trim() === "" || /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(form.gst.trim().toUpperCase());
+  const isValid = Boolean(
+    form.salutation &&
+      form.firstName &&
+      form.lastName &&
+      form.organization &&
+      form.designation &&
+      form.department &&
+      form.state &&
+      form.city &&
+      form.address &&
+      emailValid &&
+      pincodeValid &&
+      mobileValid &&
+      telephoneValid &&
+      panValid &&
+      gstValid,
+  );
+  const filledCount = [
+    form.salutation,
+    form.firstName,
+    form.middleName,
+    form.lastName,
+    form.email,
+    form.mobile,
+    form.telephone,
+    form.organization,
+    form.designation,
+    form.department,
+    form.country,
+    form.address,
+    form.addressLine2,
+    form.city,
+    form.state,
+    form.pincode,
+    form.pan,
+    form.gst,
+  ].filter(Boolean).length;
+  const progress = Math.round((filledCount / 18) * 100);
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (isValid) {
       onUpdate(form);
-      onNext();
+      await onNext(form);
     }
   };
 
@@ -198,6 +251,18 @@ export const Step2Contacts = ({ data, onUpdate, onNext, onBack }: Step2Props) =>
       </div>
 
       <div className="space-y-6">
+        <div className="rounded-xl border border-border bg-card p-4 shadow-card">
+          <label className="inline-flex items-center gap-2 text-xs font-medium text-foreground">
+            <input
+              type="checkbox"
+              checked={form.showInDirectory}
+              onChange={(e) => setBool("showInDirectory", e.target.checked)}
+              className="h-4 w-4 rounded border-border"
+            />
+            Show primary contact in membership directory
+          </label>
+        </div>
+
         {/* Personal */}
         <SectionCard icon={User} iconBg="bg-emerald/10 text-emerald" title="Personal Details" subtitle="Your primary contact information" delay={0}>
           <div className="grid gap-4 sm:grid-cols-4">
@@ -205,32 +270,45 @@ export const Step2Contacts = ({ data, onUpdate, onNext, onBack }: Step2Props) =>
             <div className="sm:col-span-1">
               <InputField label="First Name" value={form.firstName} onChange={(v) => set("firstName", v)} required placeholder="John" error="First name is required" />
             </div>
+            <div className="sm:col-span-1">
+              <InputField label="Middle Name" value={form.middleName} onChange={(v) => set("middleName", v)} placeholder="Robert" />
+            </div>
             <div className="sm:col-span-2">
               <InputField label="Last Name" value={form.lastName} onChange={(v) => set("lastName", v)} required placeholder="Doe" error="Last name is required" />
             </div>
           </div>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
             <InputField label="Email Address" value={form.email} onChange={(v) => set("email", v)} type="email" required placeholder="john@company.com" error="Email is required" />
             <InputField label="Mobile Number" value={form.mobile} onChange={(v) => set("mobile", v)} type="tel" required placeholder="+91 98765 43210" error="Mobile number is required" />
+            <InputField label="Telephone Number" value={form.telephone} onChange={(v) => set("telephone", v)} type="tel" placeholder="040-12345678" />
           </div>
         </SectionCard>
 
         {/* Organization */}
         <SectionCard icon={Building2} iconBg="bg-ocean/10 text-ocean" title="Organization Details" subtitle="Your workplace information (optional)" delay={0.1}>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <InputField label="Organization Name" value={form.organization} onChange={(v) => set("organization", v)} placeholder="e.g., Tata Projects Ltd" />
-            <InputField label="Designation" value={form.designation} onChange={(v) => set("designation", v)} placeholder="e.g., Senior Architect" />
+          <div className="grid gap-4 sm:grid-cols-3">
+            <InputField label="Organization Name" value={form.organization} onChange={(v) => set("organization", v)} required placeholder="e.g., Tata Projects Ltd" />
+            <InputField label="Designation" value={form.designation} onChange={(v) => set("designation", v)} required placeholder="e.g., Senior Architect" />
+            <InputField label="Department" value={form.department} onChange={(v) => set("department", v)} required placeholder="e.g., Coordination" />
           </div>
         </SectionCard>
 
         {/* Address */}
         <SectionCard icon={MapPin} iconBg="bg-accent/10 text-accent" title="Communication Address" subtitle="Your mailing address for correspondence" delay={0.2}>
           <div className="space-y-4">
-            <InputField label="Street Address" value={form.address} onChange={(v) => set("address", v)} placeholder="e.g., 42, MG Road, Near Metro Station" />
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <InputField label="Street Address" value={form.address} onChange={(v) => set("address", v)} required placeholder="e.g., 42, MG Road, Near Metro Station" />
+              <InputField label="Address Line 2" value={form.addressLine2} onChange={(v) => set("addressLine2", v)} placeholder="Landmark / Area" />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-4">
+              <SelectField label="Country" value={form.country} onChange={(v) => set("country", v)} options={countries} />
               <InputField label="City" value={form.city} onChange={(v) => set("city", v)} placeholder="e.g., Hyderabad" />
               <SelectField label="State" value={form.state} onChange={(v) => set("state", v)} options={states} />
               <InputField label="PIN Code" value={form.pincode} onChange={(v) => set("pincode", v)} placeholder="e.g., 500001" />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <InputField label="PAN" value={form.pan} onChange={(v) => set("pan", v)} required placeholder="ABCDE1234F" />
+              <InputField label="GST" value={form.gst} onChange={(v) => set("gst", v)} placeholder="22ABCDE1234F1Z5" />
             </div>
           </div>
         </SectionCard>
@@ -262,11 +340,11 @@ export const Step2Contacts = ({ data, onUpdate, onNext, onBack }: Step2Props) =>
         <motion.button
           whileHover={isValid ? { scale: 1.03, x: 3 } : {}}
           whileTap={isValid ? { scale: 0.97 } : {}}
-          onClick={handleNext}
-          disabled={!isValid}
+          onClick={() => void handleNext()}
+          disabled={!isValid || loading}
           className="inline-flex items-center gap-2 rounded-xl bg-emerald px-7 py-3 text-sm font-semibold text-emerald-foreground shadow-premium transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:shadow-none"
         >
-          Review <ArrowRight className="h-4 w-4" />
+          {loading ? "Saving..." : "Review"} {!loading && <ArrowRight className="h-4 w-4" />}
         </motion.button>
       </motion.div>
     </motion.div>

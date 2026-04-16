@@ -78,6 +78,15 @@ export type ApExamRegistrationResponse = {
   };
   paymentStatus: "pending" | "success" | "failure";
   examId?: string;
+  reportUrl?: string | null;
+  examScore?: number | null;
+  score?: number | null;
+  resultStatus?: "pass" | "fail" | null;
+  assessment?: {
+    reportUrl?: string | null;
+    score?: number | null;
+    resultStatus?: "pass" | "fail" | null;
+  };
 };
 
 export type PaymentUpdateResponse = {
@@ -111,6 +120,9 @@ export type ApExamListing = {
   status: "registered" | "rescheduled";
   createdAt: string;
   updatedAt: string;
+  reportUrl?: string | null;
+  examScore?: number | null;
+  resultStatus?: "pass" | "fail" | null;
   rescheduleHistory?: Array<{
     fromDate: string;
     toDate: string;
@@ -234,6 +246,10 @@ export async function getMyApExamListings(userEmail: string) {
         status?: "registered" | "rescheduled";
         createdAt?: string;
         updatedAt?: string;
+        reportUrl?: string | null;
+        score?: number | null;
+        examScore?: number | null;
+        resultStatus?: "pass" | "fail" | null;
       }>
     >(`/ap-exam/user-exams?email=${encodeURIComponent(userEmail)}`, {
       method: "GET",
@@ -251,6 +267,9 @@ export async function getMyApExamListings(userEmail: string) {
       status: item.status ?? "registered",
       createdAt: item.createdAt ?? new Date().toISOString(),
       updatedAt: item.updatedAt ?? new Date().toISOString(),
+      reportUrl: item.reportUrl ?? null,
+      examScore: item.score ?? item.examScore ?? null,
+      resultStatus: item.resultStatus ?? null,
       rescheduleHistory: [],
     }));
   } catch {

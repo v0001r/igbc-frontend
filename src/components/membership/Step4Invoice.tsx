@@ -4,8 +4,10 @@ import { ArrowLeft, ArrowRight, Download, Receipt, IndianRupee } from "lucide-re
 interface Step4Props {
   categoryData: { membershipType: string; category: string };
   contactData: { firstName: string; lastName: string; email: string; organization: string };
-  onNext: () => void;
+  invoiceData?: { invoiceNumber?: string; membershipFee?: number; gstAmount?: number; totalPayable?: number } | null;
+  onNext: () => Promise<void>;
   onBack: () => void;
+  loading?: boolean;
 }
 
 const pricing: Record<string, { base: number; gst: number }> = {
@@ -22,10 +24,19 @@ const typeLabel: Record<string, string> = {
   institutional: "Institutional Membership",
 };
 
-export const Step4Invoice = ({ categoryData, contactData, onNext, onBack }: Step4Props) => {
-  const price = pricing[categoryData.membershipType] || pricing.individual;
-  const total = price.base + price.gst;
-  const invoiceNo = `IGBC-PRO-${Date.now().toString().slice(-6)}`;
+export const Step4Invoice = ({
+  categoryData,
+  contactData,
+  invoiceData,
+  onNext,
+  onBack,
+  loading = false,
+}: Step4Props) => {
+  const fallback = pricing[categoryData.membershipType] || pricing.individual;
+  const baseAmount = invoiceData?.membershipFee ?? fallback.base;
+  const gstAmount = invoiceData?.gstAmount ?? fallback.gst;
+  const total = invoiceData?.totalPayable ?? baseAmount + gstAmount;
+  const invoiceNo = invoiceData?.invoiceNumber ?? `IGBC-PRO-${Date.now().toString().slice(-6)}`;
 
   return (
     <motion.div
@@ -93,13 +104,13 @@ export const Step4Invoice = ({ categoryData, contactData, onNext, onBack }: Step
               <p className="text-sm font-semibold text-foreground">{typeLabel[categoryData.membershipType]}</p>
               <p className="text-xs text-muted-foreground mt-0.5">Category: {categoryData.category} · Annual Subscription</p>
             </div>
-            <span className="font-mono text-sm font-bold text-foreground shrink-0 ml-4">₹{price.base.toLocaleString("en-IN")}</span>
+            <span className="font-mono text-sm font-bold text-foreground shrink-0 ml-4">₹{baseAmount.toLocaleString("en-IN")}</span>
           </div>
 
           {/* GST */}
           <div className="flex items-center justify-between py-3 text-sm">
             <span className="text-muted-foreground">GST @ 18%</span>
-            <span className="font-mono text-muted-foreground">₹{price.gst.toLocaleString("en-IN")}</span>
+            <span className="font-mono text-muted-foreground">₹{gstAmount.toLocaleString("en-IN")}</span>
           </div>
         </div>
 
@@ -147,10 +158,11 @@ export const Step4Invoice = ({ categoryData, contactData, onNext, onBack }: Step
         <motion.button
           whileHover={{ scale: 1.03, x: 3 }}
           whileTap={{ scale: 0.97 }}
-          onClick={onNext}
+          onClick={() => void onNext()}
+          disabled={loading}
           className="inline-flex items-center gap-2 rounded-xl bg-emerald px-7 py-3 text-sm font-semibold text-emerald-foreground shadow-premium transition-all"
         >
-          Proceed to Payment <ArrowRight className="h-4 w-4" />
+          {loading ? "Generating..." : "Proceed to Payment"} {!loading && <ArrowRight className="h-4 w-4" />}
         </motion.button>
       </motion.div>
     </motion.div>

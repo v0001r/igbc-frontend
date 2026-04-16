@@ -85,9 +85,9 @@ const Register = () => {
     }`;
 
   return (
-    <div className="flex min-h-screen">
+    <div className="min-h-screen lg:overflow-hidden">
       {/* Left Branding */}
-      <div className="hidden w-[420px] flex-col justify-between bg-gradient-to-br from-primary to-primary/80 p-12 lg:flex">
+      <div className="hidden w-1/2 flex-col justify-between bg-gradient-to-br from-primary to-primary/80 p-12 lg:fixed lg:inset-y-0 lg:left-0 lg:flex">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-foreground/20 backdrop-blur-sm">
             <Leaf className="h-5 w-5 text-primary-foreground" />
@@ -113,7 +113,7 @@ const Register = () => {
       </div>
 
       {/* Right Form */}
-      <div className="flex flex-1 items-start justify-center overflow-y-auto bg-background px-6 py-10">
+      <div className="flex w-full items-start justify-center bg-background px-6 py-10 lg:ml-[50%] lg:h-screen lg:w-1/2 lg:overflow-y-auto">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-2xl">
           {/* Mobile logo */}
           <div className="mb-6 flex items-center gap-2 lg:hidden">

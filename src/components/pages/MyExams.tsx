@@ -4,8 +4,10 @@ import { motion } from "framer-motion";
 import { AlertCircle, Calendar, Clock, IndianRupee, RefreshCw, X } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import {
+  getApExamRegistrationByEmail,
   getMyApExamListings,
   rescheduleApExamListing,
+  type ApExamRegistrationResponse,
   type ApExamListing,
 } from "@/lib/apExam";
 import { useToast } from "@/hooks/use-toast";
@@ -14,6 +16,7 @@ const MyExams = () => {
   const { toast } = useToast();
   const currentUser = getCurrentUser();
   const [exams, setExams] = useState<ApExamListing[]>([]);
+  const [existingRegistration, setExistingRegistration] = useState<ApExamRegistrationResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedExam, setSelectedExam] = useState<ApExamListing | null>(null);
   const [mode, setMode] = useState<"prepone" | "postpone">("postpone");
@@ -29,8 +32,12 @@ const MyExams = () => {
         return;
       }
       try {
-        const result = await getMyApExamListings(email);
+        const [result, registration] = await Promise.all([
+          getMyApExamListings(email),
+          getApExamRegistrationByEmail(email).catch(() => null),
+        ]);
         setExams(result);
+        setExistingRegistration(registration);
       } catch (error) {
         toast({
           title: "Unable to load exams",
@@ -148,9 +155,92 @@ const MyExams = () => {
         )}
 
         {!loading && exams.length === 0 && (
-          <div className="rounded-2xl bg-card p-6 text-sm text-muted-foreground shadow-card">
-            No AP exam registrations found for your account.
-          </div>
+          <>
+            {!existingRegistration && (
+              <div className="rounded-2xl bg-card p-6 text-sm text-muted-foreground shadow-card">
+                No AP exam registrations found for your account.
+              </div>
+            )}
+          </>
+        )}
+
+        {!loading && existingRegistration && exams.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="rounded-2xl bg-card p-6 shadow-card"
+          >
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-semibold text-foreground">IGBC AP Exam</h3>
+                <span className="rounded-full bg-primary-muted px-2.5 py-0.5 text-xs font-medium text-primary">
+                  {existingRegistration.paymentStatus === "success" ? "Registered" : "Details Submitted"}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5" />
+                  {existingRegistration.examSlotSelection?.examDate
+                    ? new Date(existingRegistration.examSlotSelection.examDate).toLocaleDateString("en-IN", {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })
+                    : "-"}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3.5 w-3.5" />
+                  {existingRegistration.examSlotSelection?.examTime ?? "-"}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Registration ID:{" "}
+                <span className="font-mono">{existingRegistration.registrationId}</span>
+              </p>
+              {existingRegistration.examId && (
+                <p className="text-xs text-muted-foreground">
+                  Exam ID: <span className="font-mono">{existingRegistration.examId}</span>
+                </p>
+              )}
+              {(existingRegistration.assessment?.score ??
+                existingRegistration.examScore ??
+                existingRegistration.score) !== undefined &&
+                (existingRegistration.assessment?.score ??
+                  existingRegistration.examScore ??
+                  existingRegistration.score) !== null && (
+                  <p className="text-xs text-muted-foreground">
+                    Score:{" "}
+                    <span className="font-semibold text-foreground">
+                      {existingRegistration.assessment?.score ??
+                        existingRegistration.examScore ??
+                        existingRegistration.score}
+                    </span>
+                  </p>
+                )}
+              {(existingRegistration.assessment?.resultStatus ?? existingRegistration.resultStatus) && (
+                <p className="text-xs text-muted-foreground">
+                  Result:{" "}
+                  <span className="font-semibold text-foreground">
+                    {String(existingRegistration.assessment?.resultStatus ?? existingRegistration.resultStatus).toUpperCase()}
+                  </span>
+                </p>
+              )}
+              {(existingRegistration.assessment?.reportUrl ?? existingRegistration.reportUrl) && (
+                <p className="text-xs text-muted-foreground">
+                  Report:{" "}
+                  <a
+                    href={String(existingRegistration.assessment?.reportUrl ?? existingRegistration.reportUrl)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-primary hover:underline"
+                  >
+                    View report
+                  </a>
+                </p>
+              )}
+            </div>
+          </motion.div>
         )}
 
         {!loading &&
@@ -191,6 +281,24 @@ const MyExams = () => {
                   <p className="text-xs text-muted-foreground">
                     Exam ID: <span className="font-mono">{exam.examId}</span>
                   </p>
+                  {exam.examScore !== null && exam.examScore !== undefined && (
+                    <p className="text-xs text-muted-foreground">
+                      Score: <span className="font-semibold text-foreground">{exam.examScore}</span>
+                    </p>
+                  )}
+                  {exam.resultStatus && (
+                    <p className="text-xs text-muted-foreground">
+                      Result: <span className="font-semibold text-foreground">{exam.resultStatus.toUpperCase()}</span>
+                    </p>
+                  )}
+                  {exam.reportUrl && (
+                    <p className="text-xs text-muted-foreground">
+                      Report:{" "}
+                      <a href={exam.reportUrl} target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">
+                        View report
+                      </a>
+                    </p>
+                  )}
                 </div>
 
                 <button

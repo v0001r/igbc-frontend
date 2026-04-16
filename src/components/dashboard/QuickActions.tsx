@@ -11,7 +11,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
-import { getMyApExamListings } from "@/lib/apExam";
+import { getApExamRegistrationByEmail, getMyApExamListings } from "@/lib/apExam";
 
 const baseActions = [
   { title: "My Exams", desc: "View exam schedule & results", icon: ClipboardList, color: "text-ocean", path: "/exams" },
@@ -40,9 +40,12 @@ export const QuickActions = () => {
       }
 
       try {
-        const exams = await getMyApExamListings(email);
+        const [exams, registration] = await Promise.all([
+          getMyApExamListings(email),
+          getApExamRegistrationByEmail(email).catch(() => null),
+        ]);
         if (isActive) {
-          setHasApExamRegistration(exams.length > 0);
+          setHasApExamRegistration(exams.length > 0 || Boolean(registration?.registrationId));
         }
       } catch {
         if (isActive) {

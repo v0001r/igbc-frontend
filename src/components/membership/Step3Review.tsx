@@ -9,9 +9,10 @@ interface Step3Props {
     designation: string; address: string; city: string;
     state: string; pincode: string;
   };
-  onNext: () => void;
+  onNext: () => Promise<void>;
   onBack: () => void;
   onEditStep: (step: number) => void;
+  loading?: boolean;
 }
 
 const typeLabels: Record<string, string> = {
@@ -67,7 +68,7 @@ const Field = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
-export const Step3Review = ({ categoryData, contactData, onNext, onBack, onEditStep }: Step3Props) => {
+export const Step3Review = ({ categoryData, contactData, onNext, onBack, onEditStep, loading = false }: Step3Props) => {
   const fullName = [contactData.salutation, contactData.firstName, contactData.lastName].filter(Boolean).join(" ");
   const location = [contactData.city, contactData.state].filter(Boolean).join(", ");
 
@@ -154,10 +155,11 @@ export const Step3Review = ({ categoryData, contactData, onNext, onBack, onEditS
         <motion.button
           whileHover={{ scale: 1.03, x: 3 }}
           whileTap={{ scale: 0.97 }}
-          onClick={onNext}
+          onClick={() => void onNext()}
+          disabled={loading}
           className="inline-flex items-center gap-2 rounded-xl bg-emerald px-7 py-3 text-sm font-semibold text-emerald-foreground shadow-premium transition-all"
         >
-          Generate Invoice <ArrowRight className="h-4 w-4" />
+          {loading ? "Loading..." : "Generate Invoice"} {!loading && <ArrowRight className="h-4 w-4" />}
         </motion.button>
       </motion.div>
     </motion.div>

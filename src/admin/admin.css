@@ -1,0 +1,139 @@
+:root {
+  --section-header: 152 55% 35%;
+}
+
+.sidebar-item {
+  @apply mx-1.5 flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200;
+  color: hsl(var(--sidebar-fg, var(--muted-foreground)));
+}
+.sidebar-item:hover {
+  background: hsl(var(--sidebar-hover, var(--accent)));
+  color: hsl(var(--sidebar-active-text, var(--foreground)));
+}
+.sidebar-item.active {
+  background: hsl(var(--sidebar-active, var(--accent)));
+  color: hsl(var(--sidebar-active-text, var(--foreground)));
+  font-weight: 600;
+}
+
+.kpi-card {
+  @apply rounded-xl border p-5 transition-all duration-300;
+  background: hsl(var(--card));
+  border-color: hsl(var(--border));
+  box-shadow: 0 1px 3px hsl(0 0% 0% / 0.04);
+}
+.kpi-card:hover {
+  box-shadow: 0 4px 12px hsl(0 0% 0% / 0.06);
+}
+
+.data-table {
+  @apply w-full;
+  font-size: 12px;
+}
+.data-table thead th {
+  @apply px-4 py-3 text-left font-semibold uppercase tracking-wider;
+  font-size: 10.5px;
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted));
+  border-bottom: 1px solid hsl(var(--border));
+}
+.data-table tbody td {
+  @apply px-4 py-3;
+  border-bottom: 1px solid hsl(var(--border));
+  font-size: 12px;
+}
+.data-table tbody tr {
+  @apply transition-colors duration-150;
+}
+.data-table tbody tr:nth-child(even) {
+  background: hsl(210 20% 98.5%);
+}
+.data-table tbody tr:hover {
+  background: transparent;
+}
+
+.status-badge {
+  @apply inline-flex items-center rounded-full px-2.5 py-1 font-semibold;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  border: 1px solid transparent;
+  box-shadow: 0 1px 1px hsl(210 20% 20% / 0.04);
+}
+.status-approved {
+  background: hsl(156 46% 92%);
+  border-color: hsl(156 40% 84%);
+  color: hsl(156 62% 28%);
+}
+.status-pending {
+  background: hsl(42 88% 91%);
+  border-color: hsl(42 74% 83%);
+  color: hsl(36 77% 33%);
+}
+.status-rejected {
+  background: hsl(350 78% 94%);
+  border-color: hsl(350 62% 85%);
+  color: hsl(344 64% 38%);
+}
+
+.filter-input {
+  @apply rounded-lg border px-3 py-1.5 transition-all duration-200;
+  font-size: 12px;
+  border-color: hsl(var(--border));
+  background: hsl(var(--card));
+}
+.filter-input:focus {
+  outline: none;
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.08);
+}
+
+.action-btn {
+  @apply inline-flex cursor-pointer items-center gap-1.5 rounded-lg border px-3 py-1.5 font-medium transition-all duration-200;
+  font-size: 11px;
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary));
+  background: transparent;
+}
+.action-btn:hover {
+  background: hsl(var(--primary) / 0.06);
+}
+.action-btn:disabled,
+.action-btn[aria-disabled="true"] {
+  @apply cursor-not-allowed opacity-50;
+}
+.action-btn-primary,
+.action-btn-success,
+.action-btn-danger,
+.action-btn-outline {
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary));
+  background: transparent;
+}
+.action-btn-primary:hover,
+.action-btn-success:hover,
+.action-btn-danger:hover,
+.action-btn-outline:hover {
+  background: hsl(var(--primary) / 0.06);
+}
+
+.section-header {
+  @apply mb-3 border-b pb-2 text-sm font-semibold;
+  color: hsl(var(--section-header));
+  border-color: hsl(var(--border));
+}
+
+.detail-grid {
+  @apply grid gap-x-6 gap-y-3;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+.detail-label {
+  @apply mb-0.5 font-medium;
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+}
+.detail-value {
+  font-size: 12.5px;
+  color: hsl(var(--foreground));
+}

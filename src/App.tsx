@@ -3,7 +3,7 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { isAuthenticated } from "@/lib/auth";
+import { getCurrentUser, isAuthenticated } from "@/lib/auth";
 import Index from "./components/pages/Index.tsx";
 import Profile from "./components/pages/Profile.tsx";
 import Settings from "./components/pages/Settings.tsx";
@@ -19,6 +19,7 @@ import Login from "./components/pages/Login.tsx";
 import Register from "./components/pages/Register.tsx";
 import ProjectDetail from "./components/pages/ProjectDetail.tsx";
 import NotFound from "./components/pages/NotFound.tsx";
+import AdminModule from "./admin/AdminModule.tsx";
 
 const queryClient = new QueryClient();
 
@@ -26,11 +27,27 @@ const RequireAuth = () => {
   if (!isAuthenticated()) {
     return <Navigate to="/login" replace />;
   }
+  const user = getCurrentUser();
+  if (user?.userType === "a") {
+    return <Navigate to="/admin" replace />;
+  }
   return <Outlet />;
 };
 
 const RedirectIfAuth = () => {
   if (isAuthenticated()) {
+    const user = getCurrentUser();
+    return <Navigate to={user?.userType === "a" ? "/admin" : "/home"} replace />;
+  }
+  return <Outlet />;
+};
+
+const RequireAdmin = () => {
+  if (!isAuthenticated()) {
+    return <Navigate to="/admin/login" replace />;
+  }
+  const user = getCurrentUser();
+  if (user?.userType !== "a") {
     return <Navigate to="/home" replace />;
   }
   return <Outlet />;
@@ -46,6 +63,7 @@ const App = () => (
           <Route element={<RedirectIfAuth />}>
             <Route path="/" element={<Login />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/admin/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
           </Route>
 
@@ -63,6 +81,10 @@ const App = () => (
             <Route path="/project/:id" element={<ProjectDetail />} />
             <Route path="/register-project" element={<RegisterProject />} />
             <Route path="/nest-plus" element={<NestPlus />} />
+          </Route>
+
+          <Route element={<RequireAdmin />}>
+            <Route path="/admin/*" element={<AdminModule />} />
           </Route>
 
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Camera, Share2, Download } from "lucide-react";
+import { Camera } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 
 export const ProfileHeader = () => {
@@ -39,15 +39,6 @@ export const ProfileHeader = () => {
             </span>
           </div>
         </div>
-      </div>
-
-      <div className="flex gap-2">
-        <button className="flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted">
-          <Share2 className="h-4 w-4" strokeWidth={1.5} /> Share
-        </button>
-        <button className="flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted">
-          <Download className="h-4 w-4" strokeWidth={1.5} /> PDF
-        </button>
       </div>
     </motion.div>
   );

@@ -38,67 +38,47 @@ export const StepProgress = ({ currentStep, onStepClick }: StepProgressProps) =>
       {/* Desktop */}
       <div className="hidden sm:block">
         <div className="rounded-xl border border-border bg-card px-6 py-4 shadow-card">
-          <div className="flex items-center justify-between">
-            {steps.map((step, i) => {
+          <div className="relative">
+            <div className="absolute left-0 right-0 top-[18px] h-px bg-border" />
+            <div
+              className="absolute left-0 top-[18px] h-px bg-primary transition-all duration-400"
+              style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}
+            />
+            <div className="grid grid-cols-5">
+              {steps.map((step) => {
               const isCompleted = currentStep > step.num;
               const isActive = currentStep === step.num;
 
               return (
-                <div key={step.num} className="flex flex-1 items-center">
-                  <div className="flex flex-col items-center w-full">
-                    <div className="flex items-center w-full">
-                      {i > 0 && (
-                        <div className="flex-1 h-px bg-border">
-                          <motion.div
-                            className="h-full bg-primary"
-                            initial={false}
-                            animate={{ width: isCompleted ? "100%" : isActive ? "50%" : "0%" }}
-                            transition={{ duration: 0.4 }}
-                          />
-                        </div>
-                      )}
-
-                      <button
-                        onClick={() => isCompleted && onStepClick(step.num)}
-                        disabled={!isCompleted}
-                        className="relative shrink-0"
-                      >
-                        <div
-                          className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold transition-all ${
-                            isCompleted
-                              ? "bg-primary text-primary-foreground cursor-pointer hover:scale-105"
-                              : isActive
-                              ? "bg-primary text-primary-foreground ring-4 ring-primary/15"
-                              : "bg-muted text-muted-foreground"
-                          }`}
-                        >
-                          {isCompleted ? <Check className="h-4 w-4" strokeWidth={3} /> : step.num}
-                        </div>
-                      </button>
-
-                      {i < steps.length - 1 && (
-                        <div className="flex-1 h-px bg-border">
-                          <motion.div
-                            className="h-full bg-primary"
-                            initial={false}
-                            animate={{ width: isCompleted ? "100%" : "0%" }}
-                            transition={{ duration: 0.4 }}
-                          />
-                        </div>
-                      )}
+                <div key={step.num} className="flex flex-col items-center">
+                  <button
+                    onClick={() => isCompleted && onStepClick(step.num)}
+                    disabled={!isCompleted}
+                    className="relative z-10 shrink-0"
+                  >
+                    <div
+                      className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold transition-all ${
+                        isCompleted
+                          ? "bg-primary text-primary-foreground cursor-pointer hover:scale-105"
+                          : isActive
+                          ? "bg-primary text-primary-foreground ring-4 ring-primary/15"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {isCompleted ? <Check className="h-4 w-4" strokeWidth={3} /> : step.num}
                     </div>
-
-                    <div className="mt-2 text-center">
-                      <p className={`text-[11px] font-semibold ${
-                        isActive ? "text-primary" : isCompleted ? "text-foreground" : "text-muted-foreground"
-                      }`}>
-                        {step.title}
-                      </p>
-                    </div>
+                  </button>
+                  <div className="mt-2 text-center">
+                    <p className={`text-[11px] font-semibold ${
+                      isActive ? "text-primary" : isCompleted ? "text-foreground" : "text-muted-foreground"
+                    }`}>
+                      {step.title}
+                    </p>
                   </div>
                 </div>
               );
-            })}
+              })}
+            </div>
           </div>
         </div>
       </div>

@@ -1,34 +1,31 @@
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Phone, Mail, MessageCircle } from "lucide-react";
-
-const contacts = [
-  {
-    name: "P V S Murthy",
-    purpose: "Membership Registration & Renewal",
-    phone: "+91-40-44185132/3",
-    email: "p.v.murthy@cii.in",
-  },
-  {
-    name: "P V S Murthy",
-    purpose: "AP Exam Registration & Reschedule",
-    phone: "+91-40-44185132/3",
-    email: "p.v.murthy@cii.in",
-  },
-  {
-    name: "Sundeep V",
-    purpose: "Project Registration Process",
-    phone: "+91 90009 99689",
-    email: "sundeep.vullikanti@cii.in",
-  },
-  {
-    name: "Anand Sundararajan",
-    purpose: "Project Registration Support",
-    phone: "+91 8142239142",
-    email: "anand.sundararajan@cii.in",
-  },
-];
+import { getPublicSupportContacts, type PublicSupportContact } from "@/lib/support";
 
 export const SupportSection = () => {
+  const [contacts, setContacts] = useState<PublicSupportContact[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        const data = await getPublicSupportContacts({ limit: 8 });
+        if (active) {
+          setContacts(data);
+        }
+      } catch {
+        if (active) {
+          setContacts([]);
+        }
+      }
+    };
+    void load();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   return (
     <motion.section
       initial={{ opacity: 0, y: 10 }}
@@ -39,15 +36,20 @@ export const SupportSection = () => {
       <h2 className="mb-4 text-lg font-semibold text-foreground">
         Support & Assistance
       </h2>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {contacts.length === 0 && (
+          <div className="rounded-2xl bg-card p-5 text-xs text-muted-foreground shadow-card sm:col-span-2 lg:col-span-4">
+            Support contacts are currently unavailable.
+          </div>
+        )}
         {contacts.map((c, i) => (
           <div
-            key={i}
+            key={c.id ?? i}
             className="flex flex-col gap-3 rounded-2xl bg-card p-5 shadow-card"
           >
             <div>
               <p className="text-sm font-semibold text-foreground">{c.name}</p>
-              <p className="text-xs text-muted-foreground">{c.purpose}</p>
+              <p className="text-xs text-muted-foreground">{c.designation} - {c.department}</p>
             </div>
             <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
               <span className="flex items-center gap-2">

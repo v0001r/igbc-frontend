@@ -1,77 +1,27 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Building2, User, Users, Crown, ArrowRight, Check, Sparkles,
+  Building2, User, Users, Crown, ArrowRight, Check,
   Compass, PenTool, HardHat, Wrench, Cog, Palette, Factory, Package, GraduationCap, MoreHorizontal,
   Info,
 } from "lucide-react";
+import type { MembershipMasterItem, MembershipPlan } from "@/lib/membership";
 
 interface Step1Props {
-  data: { membershipType: string; category: string };
-  onUpdate: (data: { membershipType: string; category: string }) => void;
-  onNext: () => void;
+  data: { membershipTypeId: number | null; membershipCategoryId: number | null; membershipPlanId: number | null };
+  masters: {
+    membershipTypes: MembershipMasterItem[];
+    membershipCategories: MembershipMasterItem[];
+    membershipPlans: MembershipPlan[];
+  };
+  loading: boolean;
+  onUpdate: (data: {
+    membershipTypeId: number | null;
+    membershipCategoryId: number | null;
+    membershipPlanId: number | null;
+  }) => void;
+  onNext: () => Promise<void>;
 }
-
-const membershipTypes = [
-  {
-    id: "individual",
-    title: "Individual",
-    desc: "For professionals pursuing green building careers",
-    icon: User,
-    price: "₹5,000",
-    period: "per year",
-    highlight: "Most Affordable",
-    features: ["IGBC AP Exam eligibility", "Member directory listing", "10% event discounts", "Monthly newsletter"],
-    color: "ocean",
-  },
-  {
-    id: "professional",
-    title: "Professional",
-    desc: "For experienced green building professionals",
-    icon: Crown,
-    price: "₹15,000",
-    period: "per year",
-    highlight: "Most Popular",
-    popular: true,
-    features: ["All Individual benefits", "Priority exam scheduling", "25% event discounts", "Networking events access", "3 AP Exam attempts"],
-    color: "emerald",
-  },
-  {
-    id: "corporate",
-    title: "Corporate",
-    desc: "For organizations committed to sustainability",
-    icon: Building2,
-    price: "₹50,000",
-    period: "per year",
-    highlight: "Best Value for Teams",
-    features: ["All Professional benefits", "5 member accounts", "Logo on IGBC website", "Dedicated account manager", "Custom training programs"],
-    color: "accent",
-  },
-  {
-    id: "institutional",
-    title: "Institutional",
-    desc: "For academic & research institutions",
-    icon: Users,
-    price: "₹25,000",
-    period: "per year",
-    highlight: "For Education",
-    features: ["Student memberships included", "Research collaboration", "Conference hosting rights", "Academic resource access"],
-    color: "primary",
-  },
-];
-
-const categories = [
-  { id: "architect", label: "Architect", icon: Compass },
-  { id: "builder", label: "Builder / Developer", icon: HardHat },
-  { id: "consultant", label: "Consultant", icon: PenTool },
-  { id: "contractor", label: "Contractor", icon: Wrench },
-  { id: "engineer", label: "Engineer", icon: Cog },
-  { id: "interior", label: "Interior Designer", icon: Palette },
-  { id: "manufacturer", label: "Manufacturer", icon: Factory },
-  { id: "supplier", label: "Product Supplier", icon: Package },
-  { id: "student", label: "Student", icon: GraduationCap },
-  { id: "other", label: "Other", icon: MoreHorizontal },
-];
 
 const colorMap: Record<string, { bg: string; border: string; text: string; ring: string }> = {
   ocean: { bg: "bg-ocean/8", border: "border-ocean", text: "text-ocean", ring: "ring-ocean/20" },
@@ -80,18 +30,56 @@ const colorMap: Record<string, { bg: string; border: string; text: string; ring:
   primary: { bg: "bg-primary/8", border: "border-primary", text: "text-primary", ring: "ring-primary/20" },
 };
 
-export const Step1Category = ({ data, onUpdate, onNext }: Step1Props) => {
-  const [type, setType] = useState(data.membershipType);
-  const [category, setCategory] = useState(data.category);
+const iconPool = [
+  User,
+  Crown,
+  Building2,
+  Users,
+  Compass,
+  PenTool,
+  HardHat,
+  Wrench,
+  Cog,
+  Palette,
+  Factory,
+  Package,
+  GraduationCap,
+  MoreHorizontal,
+];
+const colorKeys = ["ocean", "emerald", "accent", "primary"] as const;
 
-  const handleNext = () => {
-    if (type && category) {
-      onUpdate({ membershipType: type, category });
-      onNext();
+export const Step1Category = ({ data, masters, loading, onUpdate, onNext }: Step1Props) => {
+  const [typeId, setTypeId] = useState<number | null>(data.membershipTypeId);
+  const [categoryId, setCategoryId] = useState<number | null>(data.membershipCategoryId);
+  const [planId, setPlanId] = useState<number | null>(data.membershipPlanId);
+  const [submitting, setSubmitting] = useState(false);
+
+  const plansForType = masters.membershipPlans.filter((plan) => {
+    if (!typeId) {
+      return false;
+    }
+    if (!plan.membershipTypeId) {
+      return true;
+    }
+    return plan.membershipTypeId === typeId;
+  });
+
+  const handleNext = async () => {
+    onUpdate({ membershipTypeId: typeId, membershipCategoryId: categoryId, membershipPlanId: planId });
+    setSubmitting(true);
+    try {
+      await onNext();
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const selectedPlan = membershipTypes.find((m) => m.id === type);
+  const selectedType = masters.membershipTypes.find((m) => m.id === typeId);
+  const selectedCategory = masters.membershipCategories.find((m) => m.id === categoryId);
+  const selectedPlan = masters.membershipPlans.find((m) => m.id === planId);
+  const isIndividualMembership =
+    selectedType?.name.toLowerCase().includes("individual") ?? false;
+  const canProceed = true;
 
   return (
     <motion.div
@@ -115,9 +103,11 @@ export const Step1Category = ({ data, onUpdate, onNext }: Step1Props) => {
 
           {/* Membership Plans - 2x2 Grid */}
           <div className="grid gap-3 sm:grid-cols-2">
-            {membershipTypes.map((m, i) => {
-              const isSelected = type === m.id;
-              const colors = colorMap[m.color];
+            {masters.membershipTypes.map((m, i) => {
+              const isSelected = typeId === m.id;
+              const color = colorKeys[i % colorKeys.length];
+              const colors = colorMap[color];
+              const Icon = iconPool[i % iconPool.length];
               return (
                 <motion.button
                   key={m.id}
@@ -126,48 +116,31 @@ export const Step1Category = ({ data, onUpdate, onNext }: Step1Props) => {
                   transition={{ delay: i * 0.05 }}
                   whileHover={{ y: -1 }}
                   whileTap={{ scale: 0.99 }}
-                  onClick={() => setType(m.id)}
+                  onClick={() => {
+                    setTypeId(m.id);
+                    setPlanId(null);
+                  }}
                   className={`group relative rounded-xl border-2 text-left overflow-hidden transition-all duration-200 ${
                     isSelected
                       ? `${colors.border} shadow-card-hover ring-2 ${colors.ring}`
                       : "border-border bg-card hover:border-muted-foreground/20 hover:shadow-card-hover"
                   }`}
                 >
-                  {/* Popular badge */}
-                  {m.popular && (
-                    <div className="absolute top-0 right-0 z-10">
-                      <div className="flex items-center gap-1 rounded-bl-lg bg-primary px-2 py-1 text-[9px] font-bold text-primary-foreground uppercase tracking-wider">
-                        <Sparkles className="h-2.5 w-2.5" /> Popular
-                      </div>
-                    </div>
-                  )}
-
                   <div className="p-4">
                     <div className="flex items-start gap-3">
                       <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors ${
                         isSelected ? `${colors.bg} ${colors.text}` : "bg-muted text-muted-foreground"
                       }`}>
-                        <m.icon className="h-5 w-5" strokeWidth={1.5} />
+                        <Icon className="h-5 w-5" strokeWidth={1.5} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-baseline justify-between">
-                          <h3 className="text-sm font-bold text-foreground">{m.title}</h3>
-                          <span className={`font-mono text-base font-bold ${isSelected ? colors.text : "text-foreground"}`}>{m.price}</span>
+                          <h3 className="text-sm font-bold text-foreground">{m.name}</h3>
                         </div>
-                        <p className="mt-0.5 text-[11px] text-muted-foreground leading-relaxed">{m.desc}</p>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground leading-relaxed">
+                          {m.code ?? "Membership plan"}
+                        </p>
                       </div>
-                    </div>
-
-                    <div className="mt-3 space-y-1.5">
-                      {m.features.slice(0, 3).map((f) => (
-                        <div key={f} className="flex items-center gap-1.5">
-                          <Check className={`h-3 w-3 shrink-0 ${isSelected ? colors.text : "text-primary"}`} strokeWidth={2.5} />
-                          <span className="text-[11px] text-muted-foreground">{f}</span>
-                        </div>
-                      ))}
-                      {m.features.length > 3 && (
-                        <span className="text-[10px] text-muted-foreground">+{m.features.length - 3} more</span>
-                      )}
                     </div>
                   </div>
 
@@ -176,7 +149,7 @@ export const Step1Category = ({ data, onUpdate, onNext }: Step1Props) => {
                     isSelected ? colors.bg : "bg-muted/30"
                   }`}>
                     <span className={`text-[11px] font-semibold ${isSelected ? colors.text : "text-muted-foreground"}`}>
-                      {isSelected ? "✓ Selected" : `Select ${m.title}`}
+                      {isSelected ? "✓ Selected" : `Select ${m.name}`}
                     </span>
                     <div className={`flex h-4 w-4 items-center justify-center rounded-full border-2 transition-all ${
                       isSelected ? `${colors.border} bg-current` : "border-muted-foreground/30"
@@ -191,7 +164,7 @@ export const Step1Category = ({ data, onUpdate, onNext }: Step1Props) => {
 
           {/* Category Selection */}
           <AnimatePresence>
-            {type && (
+            {typeId && (
               <motion.div
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -204,8 +177,9 @@ export const Step1Category = ({ data, onUpdate, onNext }: Step1Props) => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                  {categories.map((cat, i) => {
-                    const isSelected = category === cat.label;
+                  {masters.membershipCategories.map((cat, i) => {
+                    const isSelected = categoryId === cat.id;
+                    const Icon = iconPool[(i + 4) % iconPool.length];
                     return (
                       <motion.button
                         key={cat.id}
@@ -214,7 +188,7 @@ export const Step1Category = ({ data, onUpdate, onNext }: Step1Props) => {
                         transition={{ delay: i * 0.03 }}
                         whileHover={{ y: -1 }}
                         whileTap={{ scale: 0.97 }}
-                        onClick={() => setCategory(cat.label)}
+                        onClick={() => setCategoryId(cat.id)}
                         className={`flex flex-col items-center gap-1.5 rounded-lg border-2 px-2 py-3 text-center transition-all ${
                           isSelected
                             ? "border-primary bg-primary-muted shadow-sm"
@@ -224,10 +198,10 @@ export const Step1Category = ({ data, onUpdate, onNext }: Step1Props) => {
                         <div className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
                           isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                         }`}>
-                          <cat.icon className="h-4 w-4" strokeWidth={1.5} />
+                          <Icon className="h-4 w-4" strokeWidth={1.5} />
                         </div>
                         <span className={`text-[11px] font-medium leading-tight ${isSelected ? "text-primary" : "text-foreground"}`}>
-                          {cat.label}
+                          {cat.name}
                         </span>
                       </motion.button>
                     );
@@ -236,6 +210,35 @@ export const Step1Category = ({ data, onUpdate, onNext }: Step1Props) => {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {typeId && isIndividualMembership && (
+            <div>
+              <div className="mb-3">
+                <h3 className="text-sm font-bold text-foreground">Choose Membership Plan</h3>
+                <p className="mt-0.5 text-[12px] text-muted-foreground">Select an available plan for checkout</p>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {plansForType.map((plan) => {
+                  const isSelected = planId === plan.id;
+                  return (
+                    <button
+                      key={plan.id}
+                      onClick={() => setPlanId(plan.id)}
+                      className={`rounded-lg border px-3 py-3 text-left ${
+                        isSelected ? "border-primary bg-primary-muted" : "border-border bg-card hover:border-muted-foreground/20"
+                      }`}
+                    >
+                      <p className="text-sm font-semibold text-foreground">{plan.name}</p>
+                      <p className="text-[11px] text-muted-foreground">{plan.code ?? "Plan"}</p>
+                      <p className="mt-1 text-sm font-mono text-primary">
+                        {typeof plan.fee === "number" ? `Rs ${plan.fee.toLocaleString("en-IN")}` : "Fee as per plan"}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Sticky Right Sidebar */}
@@ -247,18 +250,22 @@ export const Step1Category = ({ data, onUpdate, onNext }: Step1Props) => {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[13px] text-muted-foreground">Plan</span>
-                  <span className="text-[13px] font-semibold text-foreground">{selectedPlan?.title || "—"}</span>
+                  <span className="text-[13px] font-semibold text-foreground">{selectedType?.name || "—"}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-[13px] text-muted-foreground">Category</span>
-                  <span className="text-[13px] font-semibold text-foreground">{category || "—"}</span>
+                  <span className="text-[13px] font-semibold text-foreground">{selectedCategory?.name || "—"}</span>
                 </div>
                 {selectedPlan && (
                   <>
                     <div className="border-t border-border pt-3">
                       <div className="flex items-baseline justify-between">
                         <span className="text-[13px] text-muted-foreground">Annual Fee</span>
-                        <span className="font-mono text-lg font-bold text-primary">{selectedPlan.price}</span>
+                        <span className="font-mono text-lg font-bold text-primary">
+                          {typeof selectedPlan.fee === "number"
+                            ? `Rs ${selectedPlan.fee.toLocaleString("en-IN")}`
+                            : "As per plan"}
+                        </span>
                       </div>
                       <p className="text-[10px] text-muted-foreground mt-0.5">+ applicable GST</p>
                     </div>
@@ -283,17 +290,19 @@ export const Step1Category = ({ data, onUpdate, onNext }: Step1Props) => {
 
             {/* Continue Button */}
             <motion.button
-              whileHover={type && category ? { scale: 1.01 } : {}}
-              whileTap={type && category ? { scale: 0.99 } : {}}
+              whileHover={canProceed ? { scale: 1.01 } : {}}
+              whileTap={canProceed ? { scale: 0.99 } : {}}
               onClick={handleNext}
-              disabled={!type || !category}
+              disabled={!canProceed || loading || submitting}
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-premium transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:shadow-none"
             >
-              Continue <ArrowRight className="h-4 w-4" />
+              {loading || submitting ? "Saving..." : "Continue"} {!loading && !submitting && <ArrowRight className="h-4 w-4" />}
             </motion.button>
 
-            {type && !category && (
-              <p className="text-center text-[11px] text-muted-foreground">Select your category to continue</p>
+            {typeId && (!categoryId || (isIndividualMembership && !planId)) && (
+              <p className="text-center text-[11px] text-muted-foreground">
+                {isIndividualMembership ? "Select category and plan to continue" : "Select category to continue"}
+              </p>
             )}
           </div>
         </div>
@@ -303,20 +312,26 @@ export const Step1Category = ({ data, onUpdate, onNext }: Step1Props) => {
       <div className="lg:hidden mt-6">
         <div className="flex items-center justify-between rounded-xl border border-border bg-card p-3 shadow-card">
           <div className="text-[11px] text-muted-foreground">
-            {type && category ? (
+            {canProceed ? (
               <span className="text-primary font-medium">✓ Ready to continue</span>
             ) : (
-              <span>{!type ? "Select a plan" : "Select category"}</span>
+              <span>
+                {!typeId
+                  ? "Select a membership type"
+                  : !categoryId
+                    ? "Select category"
+                    : "Select a plan"}
+              </span>
             )}
           </div>
           <motion.button
-            whileHover={type && category ? { scale: 1.02 } : {}}
-            whileTap={type && category ? { scale: 0.98 } : {}}
+            whileHover={canProceed ? { scale: 1.02 } : {}}
+            whileTap={canProceed ? { scale: 0.98 } : {}}
             onClick={handleNext}
-            disabled={!type || !category}
+            disabled={!canProceed || loading || submitting}
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-[13px] font-semibold text-primary-foreground transition-all disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            Continue <ArrowRight className="h-3.5 w-3.5" />
+            {loading || submitting ? "Saving..." : "Continue"} {!loading && !submitting && <ArrowRight className="h-3.5 w-3.5" />}
           </motion.button>
         </div>
       </div>
