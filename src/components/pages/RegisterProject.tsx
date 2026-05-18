@@ -1,5 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { resolveAutoVersionType } from "@/lib/projectFormData";
+import { createProject, fetchRatingTypes, type RatingTypeDto } from "@/lib/projects";
 import { motion, AnimatePresence } from "framer-motion";
 import { Building2, ChevronLeft, ChevronRight, Check, FileText, CreditCard, Users, ClipboardList } from "lucide-react";
 
@@ -12,11 +15,16 @@ const steps = [
 ];
 
 const RegisterProject = () => {
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
+  const [ratingTypes, setRatingTypes] = useState<RatingTypeDto[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     category: "",
     constructionType: "",
-    ratingSystem: "",
+    ratingTypeId: "",
+    versionType: "",
     projectType: "",
     projectName: "",
     siteAddress: "",
@@ -91,6 +99,46 @@ const RegisterProject = () => {
 
   const [submitted, setSubmitted] = useState(false);
 
+  useEffect(() => {
+    fetchRatingTypes()
+      .then(setRatingTypes)
+      .catch(() => setRatingTypes([]));
+  }, []);
+
+  const selectedRating = ratingTypes.find((r) => String(r.id) === formData.ratingTypeId);
+
+  const completeRegistration = async () => {
+    setSubmitError(null);
+    setSubmitting(true);
+    try {
+      const ownerName = [formData.ownerSalutation, formData.ownerFirstName, formData.ownerLastName]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+      await createProject({
+        ratingTypeId: Number(formData.ratingTypeId),
+        versionType: resolveAutoVersionType({
+          ratingTypeId: Number(formData.ratingTypeId),
+          configKey: selectedRating?.configKey,
+        }),
+        projectName: formData.projectName,
+        category: formData.category || undefined,
+        constructionType: formData.constructionType || undefined,
+        city: formData.city || undefined,
+        ownerName: ownerName || undefined,
+        ownerMobile: formData.ownerMobile || undefined,
+        ownerEmail: formData.ownerEmail || undefined,
+        ownerOrg: formData.ownerOrg || undefined,
+        paymentMode: formData.paymentMethod,
+      });
+      setSubmitted(true);
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : "Registration failed");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const categories = [
     { id: "commercial", label: "Commercial", icon: "🏢", desc: "Offices, IT Parks, Retail" },
     { id: "residential", label: "Residential", icon: "🏠", desc: "Apartments, Villas, Townships" },
@@ -98,15 +146,6 @@ const RegisterProject = () => {
     { id: "healthcare", label: "Healthcare", icon: "🏥", desc: "Hospitals, Clinics" },
     { id: "education", label: "Education", icon: "🎓", desc: "Schools, Universities" },
     { id: "hospitality", label: "Hospitality", icon: "🏨", desc: "Hotels, Resorts" },
-  ];
-
-  const ratingSystems = [
-    { id: "green-new", label: "Green New Buildings", desc: "For new construction projects" },
-    { id: "green-existing", label: "Green Existing Buildings", desc: "For operational buildings" },
-    { id: "green-interiors", label: "Green Interiors", desc: "For interior fit-outs" },
-    { id: "green-homes", label: "Green Homes", desc: "For residential buildings" },
-    { id: "green-cities", label: "Green Cities", desc: "For urban development" },
-    { id: "green-factory", label: "Green Factory Buildings", desc: "For manufacturing facilities" },
   ];
 
   const projectTypes: Record<string, string[]> = {
@@ -189,7 +228,7 @@ const RegisterProject = () => {
             </p>
             <p className="mt-1 font-mono text-sm text-primary">Project ID: PRJ-{Math.floor(1000 + Math.random() * 9000)}</p>
             <div className="mt-6 flex justify-center gap-3">
-              <button onClick={() => window.location.href = "/projects"} className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground">
+              <button onClick={() => navigate("/projects")} className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground">
                 View My Projects
               </button>
             </div>
@@ -243,22 +282,32 @@ const RegisterProject = () => {
                     <h2 className="text-lg font-bold text-foreground">Select Rating System</h2>
                     <p className="mt-1 text-sm text-muted-foreground">Choose the IGBC rating system for your project</p>
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                      {ratingSystems.map((r) => (
+                      {ratingTypes.map((r) => (
                         <button
                           key={r.id}
-                          onClick={() => update("ratingSystem", r.id)}
+                          onClick={() => {
+                            update("ratingTypeId", String(r.id));
+                            update(
+                              "versionType",
+                              resolveAutoVersionType({ ratingTypeId: r.id, configKey: r.configKey })
+                            );
+                          }}
                           className={`flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-all ${
-                            formData.ratingSystem === r.id ? "border-primary bg-primary-muted" : "border-border hover:border-primary/30"
+                            formData.ratingTypeId === String(r.id) ? "border-primary bg-primary-muted" : "border-border hover:border-primary/30"
                           }`}
                         >
                           <div className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 ${
-                            formData.ratingSystem === r.id ? "border-primary bg-primary" : "border-muted-foreground"
+                            formData.ratingTypeId === String(r.id) ? "border-primary bg-primary" : "border-muted-foreground"
                           }`}>
-                            {formData.ratingSystem === r.id && <Check className="h-3 w-3 text-primary-foreground" />}
+                            {formData.ratingTypeId === String(r.id) && <Check className="h-3 w-3 text-primary-foreground" />}
                           </div>
                           <div>
-                            <p className="text-sm font-semibold text-foreground">{r.label}</p>
-                            <p className="text-xs text-muted-foreground">{r.desc}</p>
+                            <p className="text-sm font-semibold text-foreground">{r.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {r.hasConfig
+                                ? "Certification workspace available after approval"
+                                : "Registration supported; certification form coming soon"}
+                            </p>
                           </div>
                         </button>
                       ))}
@@ -266,7 +315,7 @@ const RegisterProject = () => {
                   </motion.div>
                 )}
 
-                {formData.ratingSystem && formData.category && (
+                {formData.ratingTypeId && formData.category && (
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl bg-card p-6 shadow-card sm:p-8">
                     <h2 className="text-lg font-bold text-foreground">Type of Project</h2>
                     <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -288,7 +337,7 @@ const RegisterProject = () => {
                 <div className="flex justify-end">
                   <button
                     onClick={() => goTo(2)}
-                    disabled={!formData.category || !formData.constructionType || !formData.ratingSystem}
+                    disabled={!formData.category || !formData.constructionType || !formData.ratingTypeId}
                     className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground shadow-md transition-all hover:shadow-lg disabled:opacity-40"
                   >
                     Next <ChevronRight className="h-4 w-4" />
@@ -307,7 +356,7 @@ const RegisterProject = () => {
                     <div>
                       <label className="mb-1.5 block text-sm font-medium text-foreground">Rating Name</label>
                       <input
-                        value={ratingSystems.find((r) => r.id === formData.ratingSystem)?.label || ""}
+                        value={selectedRating?.name || ""}
                         readOnly
                         className="h-11 w-full rounded-lg border border-input bg-ghost px-4 text-sm text-muted-foreground"
                       />
@@ -419,7 +468,7 @@ const RegisterProject = () => {
                   <div className="mb-1 flex items-center gap-2">
                     <h2 className="text-lg font-bold text-foreground">Parent Organization</h2>
                   </div>
-                  <p className="text-sm text-muted-foreground">Rating: <span className="font-medium text-foreground">{ratingSystems.find((r) => r.id === formData.ratingSystem)?.label}</span></p>
+                  <p className="text-sm text-muted-foreground">Rating: <span className="font-medium text-foreground">{selectedRating?.name}</span></p>
                   <div className="mt-5 space-y-4">
                     <div>
                       <label className="mb-1.5 block text-sm font-medium text-foreground">Is your parent organization an IGBC Member?</label>
@@ -667,10 +716,11 @@ const RegisterProject = () => {
                       <h3 className="text-lg font-bold text-foreground">Pay ₹{(formData.deductTds === "Yes" ? totalAmount - registrationFee * 0.1 : totalAmount).toLocaleString()}</h3>
                       <p className="text-sm text-muted-foreground">You'll be redirected to our secure payment gateway</p>
                       <button
-                        onClick={() => setSubmitted(true)}
-                        className="mt-2 rounded-xl bg-primary px-10 py-3.5 text-sm font-semibold text-primary-foreground shadow-premium transition-all hover:shadow-lg"
+                        onClick={() => void completeRegistration()}
+                        disabled={submitting}
+                        className="mt-2 rounded-xl bg-primary px-10 py-3.5 text-sm font-semibold text-primary-foreground shadow-premium transition-all hover:shadow-lg disabled:opacity-50"
                       >
-                        Pay Now
+                        {submitting ? "Submitting…" : "Pay Now"}
                       </button>
                     </div>
                   </div>
@@ -705,16 +755,22 @@ const RegisterProject = () => {
                   </div>
                 )}
 
+                {submitError ? (
+                  <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-2 text-sm text-destructive">
+                    {submitError}
+                  </p>
+                ) : null}
                 <div className="flex justify-between">
                   <button onClick={() => goTo(4)} className="flex items-center gap-2 rounded-xl border border-border px-6 py-3 text-sm font-medium text-foreground hover:bg-muted">
                     <ChevronLeft className="h-4 w-4" /> Previous
                   </button>
                   {formData.paymentMethod === "offline" && (
                     <button
-                      onClick={() => setSubmitted(true)}
-                      className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground shadow-md"
+                      onClick={() => void completeRegistration()}
+                      disabled={submitting}
+                      className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground shadow-md disabled:opacity-50"
                     >
-                      Submit Payment Details
+                      {submitting ? "Submitting…" : "Submit Payment Details"}
                     </button>
                   )}
                 </div>

@@ -1,21 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { fetchMyProjects, type ProjectDto } from "@/lib/projects";
+import { isAuthenticated } from "@/lib/auth";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Building2, MapPin, Calendar, Plus, Search, Eye, FileText, CheckCircle2, Clock,
   AlertTriangle, Award, ChevronRight, ChevronLeft, X, Check, CreditCard, Users,
   Filter, Download, Mail, RefreshCw, ArrowUpDown
 } from "lucide-react";
-
-const projects = [
-  { id: "IGBCGFB260001", name: "CII GBC New Test 2", category: "Industrial", ratingSystem: "IGBC Green Factory Buildings", constructionType: "New / Upcoming", city: "Hyderabad", owner: "Rishav Kumar", ownerMobile: "9424858879", ownerEmail: "rishav.kumar@cii.in", ownerOrg: "CII IGBC", paymentMode: "offline", status: "pending", area: "1,00,000 sq ft", submitted: "Mar 2026", invoiceNo: "PI-20260301" },
-  { id: "IGBCGI260002", name: "SBI GHAZIPUR DAIRY FARM BRANCH NEW DELHI", category: "Commercial", ratingSystem: "IGBC Green Interiors", constructionType: "Existing", city: "New Delhi", owner: "NAVIN KUMAR", ownerMobile: "9430966364", ownerEmail: "agmpre.lhodel@sbi.co.in", ownerOrg: "STATE BANK OF INDIA", paymentMode: "offline", status: "pending", area: "65,000 sq ft", submitted: "Feb 2026", invoiceNo: "PI-20260215" },
-  { id: "IGBCGH260003", name: "Conscient 4, Residential Development at Sector-106, Gurugram", category: "Residential", ratingSystem: "IGBC Green Homes", constructionType: "New / Upcoming", city: "Gurugram", owner: "Sanjay Rastogi", ownerMobile: "9810030139", ownerEmail: "sanjay.rastogi@conscient.in", ownerOrg: "Prime Infradevelopers Pvt. Ltd.", paymentMode: "offline", status: "pending", area: "3,50,000 sq ft", submitted: "Jan 2026", invoiceNo: "PI-20260110" },
-  { id: "IGBCGNB260004", name: "Green Heights Commercial", category: "Commercial", ratingSystem: "IGBC Green New Buildings", constructionType: "New / Upcoming", city: "Mumbai", owner: "Rajesh Sharma", ownerMobile: "9876543210", ownerEmail: "rajesh@greenheights.com", ownerOrg: "GreenHeights Corp", paymentMode: "online", status: "approved", area: "1,20,000 sq ft", submitted: "Dec 2025", invoiceNo: "PI-20251201" },
-  { id: "IGBCGH260005", name: "Sunrise Residences Phase 2", category: "Residential", ratingSystem: "IGBC Green Homes", constructionType: "New / Upcoming", city: "Bangalore", owner: "Priya Mehta", ownerMobile: "9988776655", ownerEmail: "priya@sunrise.in", ownerOrg: "Sunrise Developers", paymentMode: "online", status: "approved", area: "85,000 sq ft", submitted: "Nov 2025", invoiceNo: "PI-20251115" },
-  { id: "IGBCGEB260006", name: "Heritage Green Campus", category: "Education", ratingSystem: "IGBC Green Existing Buildings", constructionType: "Existing", city: "Delhi", owner: "Dr. Sunita Rao", ownerMobile: "9112233445", ownerEmail: "sunita@heritagecampus.edu", ownerOrg: "Heritage Foundation", paymentMode: "offline", status: "in-review", area: "3,50,000 sq ft", submitted: "Oct 2025", invoiceNo: "PI-20251005" },
-];
 
 const statusConfig: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
   approved: { label: "Approved", color: "bg-primary-muted text-primary", icon: CheckCircle2 },
@@ -32,6 +25,16 @@ const tabs = [
 
 const Projects = () => {
   const navigate = useNavigate();
+  const [projects, setProjects] = useState<ProjectDto[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated()) return;
+    fetchMyProjects()
+      .then(setProjects)
+      .catch((e) => setLoadError(e instanceof Error ? e.message : "Failed to load projects"));
+  }, []);
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("submitted");
   const [showFilters, setShowFilters] = useState(false);
@@ -50,22 +53,35 @@ const Projects = () => {
   const [filterTxnId, setFilterTxnId] = useState("");
 
   // Cert modal state
-  const [certProject, setCertProject] = useState<typeof projects[0] | null>(null);
+  const [certProject, setCertProject] = useState<ProjectDto | null>(null);
   const [certStep, setCertStep] = useState(1);
   const [certType, setCertType] = useState("");
   const [expedite, setExpedite] = useState(false);
 
   const filtered = projects.filter((p) => {
-    if (statusFilter === "approved" && p.status !== "approved") return false;
-    if (statusFilter === "submitted" && p.status === "approved") return false;
+    const reg = p.registrationStatus;
+    if (statusFilter === "approved" && reg !== "approved") return false;
+    if (statusFilter === "rejected" && reg !== "rejected") return false;
+    if (statusFilter === "saved" && reg !== "draft") return false;
+    if (statusFilter === "submitted" && (reg === "approved" || reg === "rejected" || reg === "draft")) return false;
     const s = search.toLowerCase();
-    if (s && !p.name.toLowerCase().includes(s) && !p.id.toLowerCase().includes(s) && !p.owner.toLowerCase().includes(s)) return false;
-    if (filterProjectId && !p.id.toLowerCase().includes(filterProjectId.toLowerCase())) return false;
-    if (filterProjectName && !p.name.toLowerCase().includes(filterProjectName.toLowerCase())) return false;
-    if (filterOwnerName && !p.owner.toLowerCase().includes(filterOwnerName.toLowerCase())) return false;
-    if (filterRatingSystem !== "All" && p.ratingSystem !== filterRatingSystem) return false;
+    const owner = p.ownerName ?? "";
+    if (
+      s &&
+      !p.projectName.toLowerCase().includes(s) &&
+      !p.projectCode.toLowerCase().includes(s) &&
+      !owner.toLowerCase().includes(s)
+    ) {
+      return false;
+    }
+    if (filterProjectId && !p.projectCode.toLowerCase().includes(filterProjectId.toLowerCase())) return false;
+    if (filterProjectName && !p.projectName.toLowerCase().includes(filterProjectName.toLowerCase())) return false;
+    if (filterOwnerName && !owner.toLowerCase().includes(filterOwnerName.toLowerCase())) return false;
+    if (filterRatingSystem !== "All" && p.ratingTypeName !== filterRatingSystem) return false;
     return true;
   });
+
+  const ratingSystemOptions = [...new Set(projects.map((p) => p.ratingTypeName).filter(Boolean))].sort();
 
   const totalPages = Math.ceil(filtered.length / perPage);
   const paged = filtered.slice((currentPage - 1) * perPage, currentPage * perPage);
@@ -90,13 +106,19 @@ const Projects = () => {
         </button>
       </motion.div>
 
+      {loadError ? (
+        <p className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-2 text-sm text-destructive">
+          {loadError}
+        </p>
+      ) : null}
+
       {/* Stats */}
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           { label: "Total Projects", value: projects.length, color: "text-foreground" },
-          { label: "Approved", value: projects.filter((p) => p.status === "approved").length, color: "text-primary" },
-          { label: "In Review", value: projects.filter((p) => p.status === "in-review").length, color: "text-ocean" },
-          { label: "Pending", value: projects.filter((p) => p.status === "pending").length, color: "text-peach-foreground" },
+          { label: "Approved", value: projects.filter((p) => p.registrationStatus === "approved").length, color: "text-primary" },
+          { label: "In Review", value: projects.filter((p) => p.registrationStatus === "in-review").length, color: "text-ocean" },
+          { label: "Pending", value: projects.filter((p) => p.registrationStatus === "pending").length, color: "text-peach-foreground" },
         ].map((s) => (
           <div key={s.label} className="rounded-2xl bg-card p-4 text-center shadow-card">
             <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
@@ -155,11 +177,11 @@ const Projects = () => {
                     className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   >
                     <option value="All">All</option>
-                    <option>IGBC Green Factory Buildings</option>
-                    <option>IGBC Green Interiors</option>
-                    <option>IGBC Green Homes</option>
-                    <option>IGBC Green New Buildings</option>
-                    <option>IGBC Green Existing Buildings</option>
+                    {ratingSystemOptions.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <FilterInput label="Transaction Id" value={filterTxnId} onChange={setFilterTxnId} placeholder="Transaction id" />
@@ -222,7 +244,7 @@ const Projects = () => {
           </thead>
           <tbody>
             {paged.map((project, i) => {
-              const sc = statusConfig[project.status];
+              const sc = statusConfig[project.registrationStatus] ?? statusConfig.pending;
               return (
                 <motion.tr
                   key={project.id}
@@ -232,16 +254,18 @@ const Projects = () => {
                   className="border-b border-border/50 transition-colors hover:bg-muted/30"
                 >
                   <td className="px-4 py-4"><input type="checkbox" className="rounded border-input" /></td>
-                  <td className="px-4 py-4 font-mono text-xs text-muted-foreground">-</td>
-                  <td className="px-4 py-4">
-                    <p className="text-sm font-medium text-foreground">Project Name : {project.name}</p>
-                    <p className="text-xs text-muted-foreground">Rating System : {project.ratingSystem}</p>
+                  <td className="px-4 py-4 font-mono text-xs text-muted-foreground">
+                    {project.projectCode || "—"}
                   </td>
                   <td className="px-4 py-4">
-                    <p className="text-sm font-medium text-foreground">Name:{project.owner}</p>
-                    <p className="text-xs text-muted-foreground">Mobile No:{project.ownerMobile}</p>
-                    <p className="text-xs text-muted-foreground">Email: {project.ownerEmail}</p>
-                    <p className="text-xs text-muted-foreground">Organisation: {project.ownerOrg}</p>
+                    <p className="text-sm font-medium text-foreground">Project Name : {project.projectName}</p>
+                    <p className="text-xs text-muted-foreground">Rating System : {project.ratingTypeName}</p>
+                  </td>
+                  <td className="px-4 py-4">
+                    <p className="text-sm font-medium text-foreground">Name:{project.ownerName ?? "—"}</p>
+                    <p className="text-xs text-muted-foreground">Mobile No:{project.ownerMobile ?? "—"}</p>
+                    <p className="text-xs text-muted-foreground">Email: {project.ownerEmail ?? "—"}</p>
+                    <p className="text-xs text-muted-foreground">Organisation: {project.ownerOrg ?? "—"}</p>
                   </td>
                   <td className="px-4 py-4 text-sm text-foreground">{project.paymentMode}</td>
                   <td className="px-4 py-4">
@@ -302,8 +326,8 @@ const Projects = () => {
               </div>
               <div className="mt-4 rounded-xl bg-ghost p-4">
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div><span className="text-muted-foreground">Project:</span> <span className="font-medium text-foreground">{certProject.name}</span></div>
-                  <div><span className="text-muted-foreground">ID:</span> <span className="font-mono font-medium text-foreground">{certProject.id}</span></div>
+                  <div><span className="text-muted-foreground">Project:</span> <span className="font-medium text-foreground">{certProject.projectName}</span></div>
+                  <div><span className="text-muted-foreground">ID:</span> <span className="font-mono font-medium text-foreground">{certProject.projectCode || certProject.id}</span></div>
                 </div>
               </div>
               {certStep === 1 && (
@@ -355,7 +379,7 @@ const Projects = () => {
                 <div className="mt-6 text-center">
                   <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10"><Check className="h-8 w-8 text-primary" /></div>
                   <h3 className="mt-4 text-lg font-bold text-foreground">Application Submitted!</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">Your {certType} application for <strong>{certProject.name}</strong> has been submitted.</p>
+                  <p className="mt-2 text-sm text-muted-foreground">Your {certType} application for <strong>{certProject.projectName}</strong> has been submitted.</p>
                   <button onClick={() => setCertProject(null)} className="mt-5 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground">Done</button>
                 </div>
               )}
