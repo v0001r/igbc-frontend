@@ -1,5 +1,3 @@
-import { ANNEXURE_BLADE_ROUTES } from "@/lib/annexureBladeRoutes.generated";
-
 export type AnnexureBladeRoute = {
   tab: string;
   subtab: string;
@@ -13,13 +11,11 @@ export type ResolvedAnnexure = {
   tab: string;
   subtab: string;
   bladeInclude: string;
-  /** True when config has no params — Laravel used a custom annex partial only. */
   customUiOnly: boolean;
 };
 
 const INTERIORS_RATING_TYPE_ID = 5;
 
-/** Match Laravel `$version == 3` for annex routes (includes 3.3.1). */
 export function annexVersionMatches(projectVersion: string, routeVersion: string): boolean {
   if (projectVersion === routeVersion) return true;
   if (routeVersion === "3" && projectVersion.startsWith("3")) return true;
@@ -32,12 +28,13 @@ export function isAnnexSubtabSlug(subSlug: string): boolean {
 }
 
 export function resolveAnnexureRoute(
+  routes: AnnexureBladeRoute[],
   tab: string,
   subtab: string,
   projectVersion: string,
   ratingTypeId: number,
 ): AnnexureBladeRoute | null {
-  const candidates = (ANNEXURE_BLADE_ROUTES as AnnexureBladeRoute[]).filter(
+  const candidates = routes.filter(
     (r) =>
       r.tab === tab &&
       r.subtab === subtab &&
@@ -54,13 +51,14 @@ export function resolveAnnexureRoute(
 }
 
 export function resolveAnnexure(
+  routes: AnnexureBladeRoute[],
   tab: string,
   subtab: string,
   projectVersion: string,
   ratingTypeId: number,
   hasConfigFields: boolean,
 ): ResolvedAnnexure | null {
-  const route = resolveAnnexureRoute(tab, subtab, projectVersion, ratingTypeId);
+  const route = resolveAnnexureRoute(routes, tab, subtab, projectVersion, ratingTypeId);
   if (!route?.bladeInclude) {
     if (isAnnexSubtabSlug(subtab) && !hasConfigFields) {
       return {
@@ -80,7 +78,6 @@ export function resolveAnnexure(
   };
 }
 
-/** Human label from Laravel include path, e.g. `.rating.greenhomes.annexTwo` */
 export function formatBladeIncludePath(path: string): string {
   return path.replace(/^\./, "rating/").replace(/\./g, "/");
 }

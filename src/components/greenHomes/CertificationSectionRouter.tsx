@@ -2,8 +2,9 @@ import { ANNEXURE_COMPONENTS } from "@/components/greenHomes/annexureComponents"
 import { AnnexurePlaceholder } from "@/components/greenHomes/AnnexurePlaceholder";
 import { DynamicForm } from "@/components/greenHomes/DynamicForm";
 import type { CertificationFormResponse } from "@/lib/certificationForm";
-import { formatBladeIncludePath, resolveAnnexure } from "@/lib/annexureRegistry";
+import { formatBladeIncludePath, resolveAnnexure, type AnnexureBladeRoute } from "@/lib/annexureRegistry";
 import type { GreenHomesFieldDef } from "@/lib/greenHomesConfig";
+import type { FieldRuleSet } from "@/lib/fieldRules";
 import { createFieldValueContext } from "@/lib/ratingFieldValue";
 
 type Props = {
@@ -11,8 +12,10 @@ type Props = {
   title: string;
   tab: string;
   subtab: string;
+  fieldRules?: Record<string, FieldRuleSet>;
   versionType: string;
   ratingTypeId: number;
+  annexureRoutes: AnnexureBladeRoute[];
   fields: GreenHomesFieldDef[];
   formState: CertificationFormResponse;
   localValues: Record<string, string>;
@@ -28,15 +31,24 @@ export function CertificationSectionRouter({
   subtab,
   versionType,
   ratingTypeId,
+  annexureRoutes,
   fields,
   formState,
   localValues,
   errors,
+  fieldRules,
   onChange,
   onFilesChange,
 }: Props) {
   const hasConfigFields = fields.length > 0;
-  const annexure = resolveAnnexure(tab, subtab, versionType, ratingTypeId, hasConfigFields);
+  const annexure = resolveAnnexure(
+    annexureRoutes,
+    tab,
+    subtab,
+    versionType,
+    ratingTypeId,
+    hasConfigFields,
+  );
   const valueContext = createFieldValueContext(formState, tab, subtab, localValues);
   const annexKey = annexure ? formatBladeIncludePath(annexure.bladeInclude) : null;
   const AnnexComponent = annexKey ? ANNEXURE_COMPONENTS[annexKey] : undefined;
@@ -60,6 +72,9 @@ export function CertificationSectionRouter({
           title={annexure?.customUiOnly ? `${title} — parameters` : title}
           fields={fields}
           valueContext={valueContext}
+          fieldRules={fieldRules}
+          tab={tab}
+          subtab={subtab}
           errors={errors}
           onChange={onChange}
           onFilesChange={onFilesChange}

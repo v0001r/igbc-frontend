@@ -1,37 +1,38 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { CertificationChecklistView } from "@/components/greenHomes/CertificationChecklistView";
+import {
+  CertificationLeftNav,
+  type WorkspaceView,
+} from "@/components/greenHomes/CertificationLeftNav";
+import { CertificationOverview } from "@/components/greenHomes/CertificationOverview";
 import { CertificationSectionRouter } from "@/components/greenHomes/CertificationSectionRouter";
-import { DynamicSidebar } from "@/components/greenHomes/DynamicSidebar";
-import { DynamicTabs } from "@/components/greenHomes/DynamicTabs";
 import {
   buildNonFileSaveFields,
-  fetchCertificationForm,
   isFileFieldType,
   saveCertificationSection,
   uploadCertificationDocuments,
   type CertificationFormResponse,
 } from "@/lib/certificationForm";
 import {
+  fetchCertificationWorkspace,
+  type CertificationWorkspaceResponse,
+} from "@/lib/certificationWorkspace";
+import {
+  buildCertificationChecklist,
+} from "@/lib/certificationChecklist";
+import {
   getFieldsForTabSubtab,
   getSubtabsForTab,
   type GreenHomesRuntimeConfig,
 } from "@/lib/greenHomesConfig";
-import {
-  getRatingConfig,
-  getRatingConfigEntry,
-  type RatingConfigKey,
-} from "@/lib/ratingConfigRegistry";
-import { subtabCompletionPercent } from "@/lib/certificationProgress";
+import { getFieldsHiddenByRules, getRulesForSection } from "@/lib/fieldRules";
+import { fieldsControlledBy, isControlChecked, isFieldVisible } from "@/lib/fieldVisibility";
 import { createFieldValueContext, resolveFieldValue, shouldPersistField } from "@/lib/ratingFieldValue";
-import { ChevronLeft, Loader2 } from "lucide-react";
+import { ChevronLeft, FileBadge, Loader2 } from "lucide-react";
 
 type Props = {
   projectId: string;
-  projectLabel: string;
-  ratingTypeName: string;
-  versionType: string;
-  ratingKey: RatingConfigKey;
-  ratingTypeId: number;
 };
 
 function initialTabSubtab(config: GreenHomesRuntimeConfig): { tab: string; sub: string } {
@@ -41,48 +42,47 @@ function initialTabSubtab(config: GreenHomesRuntimeConfig): { tab: string; sub: 
   return { tab, sub };
 }
 
-export function GreenHomesProjectWorkspace({
-  projectId,
-  projectLabel,
-  ratingTypeName,
-  versionType,
-  ratingKey,
-  ratingTypeId,
-}: Props) {
-  const config = useMemo(() => getRatingConfig(ratingKey, versionType), [ratingKey, versionType]);
-  const ratingLabel = getRatingConfigEntry(ratingKey)?.label ?? ratingTypeName;
-
-  const [formState, setFormState] = useState<CertificationFormResponse | null>(null);
+export function GreenHomesProjectWorkspace({ projectId }: Props) {
+  const [workspace, setWorkspace] = useState<CertificationWorkspaceResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentTab, setCurrentTab] = useState(() => initialTabSubtab(config).tab);
-  const [currentSubtab, setCurrentSubtab] = useState(() => initialTabSubtab(config).sub);
+  const [view, setView] = useState<WorkspaceView>("overview");
+  const [currentTab, setCurrentTab] = useState("project_details");
+  const [currentSubtab, setCurrentSubtab] = useState("project_details");
   const [localValues, setLocalValues] = useState<Record<string, string>>({});
   const [pendingFiles, setPendingFiles] = useState<Record<string, File[]>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
-  const loadForm = useCallback(async () => {
+  const config = workspace?.config;
+  const formState = workspace?.form ?? null;
+  const annexureRoutes = workspace?.annexureRoutes ?? [];
+
+  const setFormState = useCallback((form: CertificationFormResponse) => {
+    setWorkspace((prev) => (prev ? { ...prev, form } : prev));
+  }, []);
+
+  const loadWorkspace = useCallback(async () => {
     setLoading(true);
     setLoadError(null);
     try {
-      const data = await fetchCertificationForm(projectId);
-      setFormState(data);
-      const { tab, sub } = initialTabSubtab(config);
-      setCurrentTab(data.currentTab ?? tab);
-      setCurrentSubtab(data.currentSubtab ?? sub);
+      const data = await fetchCertificationWorkspace(projectId);
+      setWorkspace(data);
+      const { tab, sub } = initialTabSubtab(data.config);
+      setCurrentTab(data.form.currentTab ?? tab);
+      setCurrentSubtab(data.form.currentSubtab ?? sub);
       setLocalValues({});
       setPendingFiles({});
     } catch (e) {
-      setLoadError(e instanceof Error ? e.message : "Failed to load form data");
+      setLoadError(e instanceof Error ? e.message : "Failed to load certification workspace");
     } finally {
       setLoading(false);
     }
-  }, [projectId, config]);
+  }, [projectId]);
 
   useEffect(() => {
-    void loadForm();
-  }, [loadForm]);
+    void loadWorkspace();
+  }, [loadWorkspace]);
 
   useEffect(() => {
     if (!formState) return;
@@ -90,11 +90,17 @@ export function GreenHomesProjectWorkspace({
     setPendingFiles({});
   }, [currentTab, currentSubtab, formState]);
 
-  const tabs = useMemo(() => (Array.isArray(config.tabs) ? config.tabs : []), [config]);
-  const subtabs = useMemo(() => getSubtabsForTab(config, currentTab), [config, currentTab]);
+  const tabs = useMemo(
+    () => (config && Array.isArray(config.tabs) ? config.tabs : []),
+    [config],
+  );
+  const subtabs = useMemo(
+    () => (config ? getSubtabsForTab(config, currentTab) : []),
+    [config, currentTab],
+  );
   const fields = useMemo(
-    () => getFieldsForTabSubtab(config, currentTab, currentSubtab),
-    [config, currentTab, currentSubtab]
+    () => (config ? getFieldsForTabSubtab(config, currentTab, currentSubtab) : []),
+    [config, currentTab, currentSubtab],
   );
 
   const valueContext = useMemo(() => {
@@ -113,60 +119,127 @@ export function GreenHomesProjectWorkspace({
     return out;
   }, [valueContext, fields, localValues]);
 
-  const subtabProgress = useMemo(() => {
-    if (!formState) return undefined;
-    return subtabs.map((s) => ({
-      subSlug: s.sub_slug,
-      percent: subtabCompletionPercent(config, formState, currentTab, s),
-    }));
-  }, [formState, config, currentTab, subtabs]);
+  const checklistSummary = useMemo(() => {
+    if (!config || !formState) return null;
+    return buildCertificationChecklist(config, formState);
+  }, [config, formState]);
 
   const currentSubtabMeta = useMemo(
     () => subtabs.find((s) => s.sub_slug === currentSubtab),
-    [subtabs, currentSubtab]
+    [subtabs, currentSubtab],
   );
   const formTitle = currentSubtabMeta?.name ?? "Section";
 
-  const onFieldChange = useCallback((name: string, value: string) => {
-    setLocalValues((prev) => ({ ...prev, [name]: value }));
-    setErrors((prev) => {
-      if (!prev[name]) return prev;
-      const next = { ...prev };
-      delete next[name];
-      return next;
-    });
-  }, []);
-
-  const onFilesChange = useCallback((name: string, files: File[]) => {
-    setPendingFiles((prev) => ({ ...prev, [name]: files }));
-    setLocalValues((prev) => ({
-      ...prev,
-      [name]: files.map((f) => f.name).join(", "),
-    }));
-  }, []);
-
-  const handleTabChange = useCallback(
-    (tabSlug: string) => {
-      setCurrentTab(tabSlug);
-      const first = getSubtabsForTab(config, tabSlug)[0]?.sub_slug;
-      if (first) setCurrentSubtab(first);
-    },
-    [config]
+  const fieldNames = useMemo(
+    () => fields.map((f) => f.name ?? "").filter(Boolean),
+    [fields],
   );
 
-  const handleSubtabChange = useCallback((tabSlug: string, subSlug: string) => {
+  const onFieldChange = useCallback(
+    (name: string, value: string) => {
+      const field = fields.find((f) => f.name === name);
+      if (field && isFileFieldType(field.type)) {
+        const allowed = new Set(value.split(/,\s*/).filter(Boolean));
+        setPendingFiles((prev) => ({
+          ...prev,
+          [name]: (prev[name] ?? []).filter((f) => allowed.has(f.name)),
+        }));
+      }
+
+      const previousValues = { ...sectionValues };
+      const nextValues = { ...sectionValues, [name]: value };
+      const ruleSet = getRulesForSection(workspace?.fieldRules, currentTab, currentSubtab);
+      const hiddenByRules = getFieldsHiddenByRules(
+        ruleSet,
+        fieldNames,
+        previousValues,
+        nextValues,
+      );
+
+      setLocalValues((prev) => {
+        const next = { ...prev, [name]: value };
+        const controller = fields.find((f) => f.name === name && f.type === "c");
+        if (controller && !isControlChecked(value)) {
+          for (const dep of fieldsControlledBy(name, fields)) {
+            const depName = dep.name ?? "";
+            if (depName) delete next[depName];
+          }
+        }
+        for (const hidden of hiddenByRules) {
+          delete next[hidden];
+        }
+        return next;
+      });
+
+      const controller = fields.find((f) => f.name === name && f.type === "c");
+      const depsToClear =
+        controller && !isControlChecked(value)
+          ? fieldsControlledBy(name, fields).map((f) => f.name ?? "").filter(Boolean)
+          : [];
+      const allCleared = [...new Set([...depsToClear, ...hiddenByRules])];
+
+      if (allCleared.length) {
+        setPendingFiles((prev) => {
+          const next = { ...prev };
+          for (const depName of allCleared) {
+            if (depName) delete next[depName];
+          }
+          return next;
+        });
+        setErrors((prev) => {
+          const next = { ...prev };
+          delete next[name];
+          for (const depName of allCleared) {
+            if (depName) delete next[depName];
+          }
+          return next;
+        });
+        if (controller && !isControlChecked(value)) {
+          return;
+        }
+      }
+
+      setErrors((prev) => {
+        if (!prev[name]) return prev;
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    },
+    [fields, fieldNames, sectionValues, workspace?.fieldRules, currentTab, currentSubtab],
+  );
+
+  const onFilesChange = useCallback((name: string, files: File[]) => {
+    setPendingFiles((prev) => ({
+      ...prev,
+      [name]: [...(prev[name] ?? []), ...files],
+    }));
+    setLocalValues((prev) => {
+      const existing = prev[name] ?? sectionValues[name] ?? "";
+      const names = existing ? existing.split(/,\s*/).filter(Boolean) : [];
+      const added = files.map((f) => f.name);
+      return { ...prev, [name]: [...names, ...added].join(", ") };
+    });
+  }, [sectionValues]);
+
+  const goToSection = useCallback((tabSlug: string, subSlug: string) => {
+    setView("section");
     setCurrentTab(tabSlug);
     setCurrentSubtab(subSlug);
   }, []);
 
   const persistForm = useCallback(async () => {
+    if (!formState) return;
     setSaving(true);
     try {
+      const saveValues = { ...sectionValues, ...localValues };
       for (const field of fields) {
         const name = field.name ?? "";
         if (!name || !isFileFieldType(field.type)) continue;
-        const files = pendingFiles[name];
-        if (!files?.length) continue;
+        if (!isFieldVisible(field, saveValues)) continue;
+        const allowedNames = new Set((saveValues[name] ?? "").split(/,\s*/).filter(Boolean));
+        const files = (pendingFiles[name] ?? []).filter((f) => allowedNames.has(f.name));
+        if (!files.length) continue;
         const updated = await uploadCertificationDocuments(projectId, {
           tab: currentTab,
           subtab: currentSubtab,
@@ -177,11 +250,13 @@ export function GreenHomesProjectWorkspace({
         setFormState(updated);
       }
 
-      const saveCtx = createFieldValueContext(formState!, currentTab, currentSubtab, {
+      const saveCtx = createFieldValueContext(formState, currentTab, currentSubtab, {
         ...sectionValues,
         ...localValues,
       });
-      const persistable = fields.filter((f) => shouldPersistField(f, saveCtx));
+      const persistable = fields.filter(
+        (f) => shouldPersistField(f, saveCtx) && isFieldVisible(f, saveValues),
+      );
       const payloadFields = buildNonFileSaveFields(persistable, { ...sectionValues, ...localValues });
       const saved = await saveCertificationSection(projectId, {
         tab: currentTab,
@@ -204,6 +279,8 @@ export function GreenHomesProjectWorkspace({
     currentSubtab,
     sectionValues,
     localValues,
+    formState,
+    setFormState,
   ]);
 
   const canGoPrevious = useMemo(() => {
@@ -213,6 +290,7 @@ export function GreenHomesProjectWorkspace({
   }, [subtabs, currentSubtab, tabs, currentTab]);
 
   const goToPrevious = useCallback(() => {
+    if (!config) return;
     const idx = subtabs.findIndex((s) => s.sub_slug === currentSubtab);
     if (idx > 0) {
       setCurrentSubtab(subtabs[idx - 1].sub_slug);
@@ -228,6 +306,7 @@ export function GreenHomesProjectWorkspace({
   }, [subtabs, currentSubtab, tabs, currentTab, config]);
 
   const saveAndContinue = useCallback(async () => {
+    if (!config) return;
     await persistForm();
     const idx = subtabs.findIndex((s) => s.sub_slug === currentSubtab);
     if (idx >= 0 && idx < subtabs.length - 1) {
@@ -243,26 +322,22 @@ export function GreenHomesProjectWorkspace({
     }
   }, [persistForm, subtabs, currentSubtab, tabs, currentTab, config]);
 
-  const finalSubmit = useCallback(async () => {
-    await persistForm();
-  }, [persistForm]);
-
   if (loading) {
     return (
       <DashboardLayout>
         <div className="flex min-h-[40vh] items-center justify-center gap-2 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin text-ocean" />
-          Loading certification form…
+          Loading certification workspace…
         </div>
       </DashboardLayout>
     );
   }
 
-  if (loadError || !formState) {
+  if (loadError || !workspace || !config || !formState) {
     return (
       <DashboardLayout>
         <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
-          {loadError ?? "Could not load form data"}
+          {loadError ?? "Could not load certification workspace"}
         </div>
       </DashboardLayout>
     );
@@ -270,92 +345,101 @@ export function GreenHomesProjectWorkspace({
 
   return (
     <DashboardLayout>
-      <div className="space-y-4">
-        <WorkspaceHeader projectLabel={projectLabel} ratingLabel={ratingLabel} />
-
-        <DynamicTabs
+      <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+        <CertificationLeftNav
           config={config}
+          view={view}
           currentTabSlug={currentTab}
           currentSubSlug={currentSubtab}
-          onTabChange={handleTabChange}
-          onSubtabChange={handleSubtabChange}
+          onViewChange={setView}
+          onSectionSelect={goToSection}
         />
 
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-          <div className="min-w-0 flex-1 space-y-4">
-            {valueContext ? (
-              <CertificationSectionRouter
-                projectId={projectId}
-                title={formTitle}
-                tab={currentTab}
-                subtab={currentSubtab}
-                versionType={versionType}
-                ratingTypeId={ratingTypeId}
-                fields={fields}
-                formState={formState}
-                localValues={localValues}
-                errors={errors}
-                onChange={onFieldChange}
-                onFilesChange={onFilesChange}
-              />
-            ) : null}
+        <div className="min-w-0 flex-1">
+          {view === "overview" ? <CertificationOverview workspace={workspace} /> : null}
 
-            <div className="flex items-center justify-between gap-3 pt-1">
-              <button
-                type="button"
-                disabled={!canGoPrevious}
-                onClick={goToPrevious}
-                className="flex items-center gap-1.5 rounded-lg border-2 border-ocean bg-transparent px-6 py-2.5 text-sm font-semibold text-ocean shadow-sm transition-colors hover:bg-ocean/10 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </button>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => void saveAndContinue()}
-                className="flex items-center gap-1.5 rounded-lg border-2 border-ocean bg-transparent px-6 py-2.5 text-sm font-semibold text-ocean shadow-sm transition-colors hover:bg-ocean/10 disabled:opacity-50"
-              >
-                {saving ? "Saving…" : "Save & Continue →"}
-              </button>
-            </div>
-          </div>
-
-          <div className="flex w-full flex-col gap-3 lg:w-72 lg:shrink-0">
-            <button
-              type="button"
-              disabled={saving}
-              onClick={() => void finalSubmit()}
-              className="w-full rounded-lg border-2 border-ocean bg-transparent px-4 py-2.5 text-sm font-semibold text-ocean shadow-sm transition-colors hover:bg-ocean/10 disabled:opacity-50"
-            >
-              Final Submit
-            </button>
-            <DynamicSidebar
-              subtabs={subtabs}
-              currentSubSlug={currentSubtab}
-              progressBySubSlug={subtabProgress}
-              onSelectSubtab={(subSlug) => setCurrentSubtab(subSlug)}
+          {view === "checklist" && checklistSummary ? (
+            <CertificationChecklistView
+              summary={checklistSummary}
+              onNavigateToCredit={goToSection}
             />
-          </div>
+          ) : null}
+
+          {view === "certificate" ? (
+            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card px-8 py-16 text-center shadow-sm">
+              <FileBadge className="mb-4 h-12 w-12 text-ocean/60" />
+              <h2 className="text-lg font-semibold text-foreground">View Certificate</h2>
+              <p className="mt-2 max-w-md text-sm text-muted-foreground">
+                Your certificate will appear here once the project is certified. Complete all credits
+                from the checklist to proceed.
+              </p>
+            </div>
+          ) : null}
+
+          {view === "section" ? (
+            <div className="space-y-4">
+              <SectionHeader
+                projectLabel={workspace.projectLabel}
+                sectionTitle={formTitle}
+              />
+
+              {valueContext ? (
+                <CertificationSectionRouter
+                  projectId={projectId}
+                  title={formTitle}
+                  tab={currentTab}
+                  subtab={currentSubtab}
+                  versionType={workspace.versionType}
+                  ratingTypeId={workspace.ratingTypeId}
+                  annexureRoutes={annexureRoutes}
+                  fieldRules={workspace.fieldRules ?? {}}
+                  fields={fields}
+                  formState={formState}
+                  localValues={localValues}
+                  errors={errors}
+                  onChange={onFieldChange}
+                  onFilesChange={onFilesChange}
+                />
+              ) : null}
+
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+                <button
+                  type="button"
+                  disabled={!canGoPrevious}
+                  onClick={goToPrevious}
+                  className="flex items-center gap-1.5 rounded-lg border-2 border-ocean bg-transparent px-5 py-2.5 text-sm font-semibold text-ocean transition-colors hover:bg-ocean/10 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => void saveAndContinue()}
+                  className="rounded-lg bg-ocean px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-ocean-hover disabled:opacity-50"
+                >
+                  {saving ? "Saving…" : "Save & Continue →"}
+                </button>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </DashboardLayout>
   );
 }
 
-function WorkspaceHeader({
+function SectionHeader({
   projectLabel,
-  ratingLabel,
+  sectionTitle,
 }: {
   projectLabel: string;
-  ratingLabel: string;
+  sectionTitle: string;
 }) {
   return (
-    <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <p className="text-sm text-muted-foreground">{projectLabel}</p>
-        <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-ocean">{ratingLabel}</p>
-      </div>
+    <div className="border-b border-border pb-3">
+      <p className="text-sm text-muted-foreground">{projectLabel}</p>
+      <h1 className="mt-1 text-lg font-semibold text-foreground">{sectionTitle}</h1>
     </div>
   );
 }

@@ -21,6 +21,7 @@ export default {
         foreground: "hsl(var(--foreground))",
         primary: {
           DEFAULT: "hsl(var(--primary))",
+          hover: "hsl(var(--primary-hover))",
           foreground: "hsl(var(--primary-foreground))",
           muted: "hsl(var(--primary-muted))",
         },
@@ -42,6 +43,7 @@ export default {
         },
         ocean: {
           DEFAULT: "hsl(var(--ocean))",
+          hover: "hsl(var(--ocean-hover))",
           foreground: "hsl(var(--ocean-foreground))",
         },
         sage: {

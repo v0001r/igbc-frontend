@@ -1,52 +1,181 @@
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import DataTable from "../components/DataTable";
 import ProjectRegistrationView from "../components/ProjectRegistrationView";
 import TableRowActions from "../components/TableRowActions";
+import {
+  approveAdminProjectRegistration,
+  getAdminProjects,
+  rejectAdminProjectRegistration,
+  type AdminProjectItem,
+} from "../lib/adminApi";
 
-const projects = [
-  { projectId: "IGBCNE260066", projectName: "Hungerford House", ratingSystem: "IGBC Green Homes", ownerName: "Soubhagya Nirman LLP", ownerMobile: "9830022315", ownerEmail: "hmodi@sugamhomes.com", organisation: "Sugam Group", paymentMode: "offline", approvalStatus: "Pending" },
-  { projectId: "IGBC260072", projectName: "Mahindra Codename M3.84SaiBaba", ratingSystem: "IGBC Green Homes", ownerName: "Girish Menon", ownerMobile: "9987559115", ownerEmail: "MENON.GIRISH@mahindra.com", organisation: "Mahindra Lifespace Developers", paymentMode: "offline", approvalStatus: "Pending" },
-  { projectId: "IGBC260081", projectName: "VIP Guest house and Hostel building at MGIRI", ratingSystem: "IGBC Green Homes", ownerName: "SG Ganjale", ownerMobile: "9960300048", ownerEmail: "ganeshg@ganrajengineering.com", organisation: "Ganraj Engineering", paymentMode: "offline", approvalStatus: "Pending" },
-  { projectId: "IGBC260089", projectName: "Ananta Green home", ratingSystem: "IGBC Green Homes", ownerName: "Rishi Todi", ownerMobile: "9831174533", ownerEmail: "rishi@nprgroup.in", organisation: "NPR Housing LLP", paymentMode: "offline", approvalStatus: "Pending" },
-  { projectId: "IGBC260095", projectName: "Foresta Group Housing Project", ratingSystem: "IGBC Green Homes", ownerName: "FAISAL MUSHTAQ", ownerMobile: "9151114040", ownerEmail: "management1@inoneoak.com", organisation: "YCL INFRATECH PRIVATE LIMITED", paymentMode: "offline", approvalStatus: "Pending" },
-  { projectId: "IGBC260102", projectName: "CII GBC New Test 2", ratingSystem: "IGBC Green Factory Buildings", ownerName: "Rishav Kumar", ownerMobile: "9424858879", ownerEmail: "rishav.kumar@cii.in", organisation: "CII IGBC", paymentMode: "offline", approvalStatus: "Pending" },
-  { projectId: "IGBC260110", projectName: "SBI GHAZIPUR DAIRY FARM BRANCH NEW DELHI", ratingSystem: "IGBC Green Interiors", ownerName: "NAVIN KUMAR", ownerMobile: "9430966364", ownerEmail: "agmpre.lhodel@sbi.co.in", organisation: "STATE BANK OF INDIA", paymentMode: "offline", approvalStatus: "Approved" },
-];
+const registrationLabel = (status: string) => {
+  switch (status) {
+    case "approved":
+      return "Approved";
+    case "rejected":
+      return "Rejected";
+    case "in-review":
+      return "In Review";
+    case "draft":
+      return "Draft";
+    default:
+      return "Pending";
+  }
+};
 
 const ProjectsPage = () => {
-  const [viewProject, setViewProject] = useState<string | null>(null);
+  const [viewProjectId, setViewProjectId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(0);
+  const [projects, setProjects] = useState<AdminProjectItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionId, setActionId] = useState<string | null>(null);
 
-  if (viewProject) {
-    return <ProjectRegistrationView onBack={() => setViewProject(null)} />;
+  const tabs = ["Submitted Projects", "Approved", "Rejected"];
+
+  const registrationFilter = useMemo(() => {
+    if (activeTab === 1) return "approved";
+    if (activeTab === 2) return "rejected";
+    return undefined;
+  }, [activeTab]);
+
+  const loadProjects = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getAdminProjects(
+        registrationFilter ? { registrationStatus: registrationFilter } : undefined,
+      );
+      const filtered =
+        activeTab === 0
+          ? data.filter((p) => p.registrationStatus === "pending" || p.registrationStatus === "in-review")
+          : data;
+      setProjects(filtered);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load projects");
+      setProjects([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [registrationFilter, activeTab]);
+
+  useEffect(() => {
+    void loadProjects();
+  }, [loadProjects]);
+
+  const handleApprove = async (id: string) => {
+    setActionId(id);
+    try {
+      await approveAdminProjectRegistration(id);
+      await loadProjects();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Approve failed");
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    setActionId(id);
+    try {
+      await rejectAdminProjectRegistration(id);
+      await loadProjects();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Reject failed");
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const selectedProject = projects.find((p) => p.id === viewProjectId) ?? null;
+
+  if (viewProjectId && selectedProject) {
+    return (
+      <ProjectRegistrationView
+        project={selectedProject}
+        onBack={() => setViewProjectId(null)}
+        onApprove={() => void handleApprove(selectedProject.id)}
+        onReject={() => void handleReject(selectedProject.id)}
+        busy={actionId === selectedProject.id}
+      />
+    );
   }
 
-  const tabs = ["Submitted Projects", "Saved Projects", "Approved", "Rejected", "Bulk Import"];
-
   const columns = [
-    { key: "projectName", label: "Project Details", sortable: true, render: (_: any, row: any) => (
-      <div className="space-y-0.5">
-        <p className="font-medium text-foreground text-xs">{row.projectName}</p>
-        <p className="text-muted-foreground text-[11px]">{row.ratingSystem}</p>
-      </div>
-    )},
-    { key: "ownerDetails", label: "Owner Details", render: (_: any, row: any) => (
-      <div className="space-y-0.5">
-        <p className="font-medium text-foreground text-xs">{row.ownerName}</p>
-        <p className="text-muted-foreground text-[11px]">{row.ownerMobile}</p>
-        <p className="text-muted-foreground text-[11px]">{row.ownerEmail}</p>
-        <p className="text-muted-foreground text-[11px]">{row.organisation}</p>
-      </div>
-    )},
+    {
+      key: "projectName",
+      label: "Project Details",
+      sortable: true,
+      render: (_: unknown, row: AdminProjectItem) => (
+        <div className="space-y-0.5">
+          <p className="text-xs font-medium text-foreground">{row.projectName}</p>
+          <p className="text-[11px] text-muted-foreground">{row.ratingTypeName}</p>
+          <p className="text-[11px] text-muted-foreground">{row.projectCode}</p>
+        </div>
+      ),
+    },
+    {
+      key: "ownerDetails",
+      label: "Owner Details",
+      render: (_: unknown, row: AdminProjectItem) => (
+        <div className="space-y-0.5">
+          <p className="text-xs font-medium text-foreground">{row.ownerName ?? "—"}</p>
+          <p className="text-[11px] text-muted-foreground">{row.ownerMobile ?? "—"}</p>
+          <p className="text-[11px] text-muted-foreground">{row.ownerEmail ?? "—"}</p>
+          <p className="text-[11px] text-muted-foreground">{row.ownerOrg ?? "—"}</p>
+        </div>
+      ),
+    },
     { key: "paymentMode", label: "Payment", sortable: true },
-    { key: "approvalStatus", label: "Status", render: (v: string) => (
-      <span className={`status-badge ${v === "Approved" ? "status-approved" : "status-pending"}`}>{v}</span>
-    )},
-    { key: "actions", label: "Action", render: (_: any, row: any) => (
-      <TableRowActions
-        actions={[{ label: "View", onClick: () => setViewProject(row.projectId), variant: "primary" }]}
-      />
-    )},
+    {
+      key: "registrationStatus",
+      label: "Status",
+      render: (_: unknown, row: AdminProjectItem) => (
+        <span
+          className={`status-badge ${
+            row.registrationStatus === "approved"
+              ? "status-approved"
+              : row.registrationStatus === "rejected"
+                ? "status-rejected"
+                : "status-pending"
+          }`}
+        >
+          {registrationLabel(row.registrationStatus)}
+        </span>
+      ),
+    },
+    {
+      key: "actions",
+      label: "Action",
+      render: (_: unknown, row: AdminProjectItem) => {
+        const busy = actionId === row.id;
+        const canModerate = row.registrationStatus === "pending" || row.registrationStatus === "in-review";
+        return (
+          <TableRowActions
+            actions={[
+              { label: "View", onClick: () => setViewProjectId(row.id), variant: "primary" },
+              ...(canModerate
+                ? [
+                    {
+                      label: "Approve",
+                      onClick: () => void handleApprove(row.id),
+                      variant: "success" as const,
+                      disabled: busy,
+                    },
+                    {
+                      label: "Reject",
+                      onClick: () => void handleReject(row.id),
+                      variant: "danger" as const,
+                      disabled: busy,
+                    },
+                  ]
+                : []),
+            ]}
+          />
+        );
+      },
+    },
   ];
 
   return (
@@ -56,7 +185,7 @@ const ProjectsPage = () => {
           <button
             key={t}
             onClick={() => setActiveTab(i)}
-            className={`pb-2.5 text-xs font-medium border-b-2 transition-colors ${
+            className={`border-b-2 pb-2.5 text-xs font-medium transition-colors ${
               i === activeTab
                 ? "border-primary text-primary"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -66,7 +195,18 @@ const ProjectsPage = () => {
           </button>
         ))}
       </div>
-      <DataTable columns={columns} data={projects} title="Project Registrations" showEmail />
+
+      {error ? (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-xs text-destructive">
+          {error}
+        </div>
+      ) : null}
+
+      {loading ? (
+        <div className="kpi-card py-10 text-center text-xs text-muted-foreground">Loading projects…</div>
+      ) : (
+        <DataTable columns={columns} data={projects} title="Project Registrations" showEmail />
+      )}
     </div>
   );
 };

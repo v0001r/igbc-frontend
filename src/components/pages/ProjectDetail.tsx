@@ -3,9 +3,8 @@ import { Link, useParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { GreenHomesProjectWorkspace } from "@/components/greenHomes/GreenHomesProjectWorkspace";
 import {
-  hasConfigForVersion,
   isCertificationWorkspaceUnlocked,
-  resolveRatingConfigKeyFromProject,
+  projectHasRatingConfig,
 } from "@/lib/ratingConfigRegistry";
 import { fetchProjectById, type ProjectDto } from "@/lib/projects";
 import { Loader2 } from "lucide-react";
@@ -43,9 +42,7 @@ const ProjectDetail = () => {
   if (loading) {
     return (
       <DashboardLayout>
-        <div
-          className="flex min-h-[40vh] items-center justify-center gap-2 text-muted-foreground"
-        >
+        <div className="flex min-h-[40vh] items-center justify-center gap-2 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin text-ocean" />
           Loading project…
         </div>
@@ -66,13 +63,6 @@ const ProjectDetail = () => {
     );
   }
 
-  const configKey = resolveRatingConfigKeyFromProject({
-    ratingTypeId: project.ratingTypeId,
-    configKey: project.configKey,
-    ratingTypeName: project.ratingTypeName,
-    abbreviation: project.ratingAbbreviation,
-  });
-
   const certificationUnlocked = isCertificationWorkspaceUnlocked(project.certificationStatus);
 
   if (!certificationUnlocked) {
@@ -89,7 +79,8 @@ const ProjectDetail = () => {
               pre-certification or certification application is approved by IGBC.
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
-              Current status: <span className="font-medium capitalize">{project.certificationStatus.replace(/_/g, " ")}</span>
+              Current status:{" "}
+              <span className="font-medium capitalize">{project.certificationStatus.replace(/_/g, " ")}</span>
             </p>
             <Link to="/projects" className="mt-6 inline-block text-sm font-medium text-ocean hover:underline">
               ← Back to My Projects
@@ -100,26 +91,25 @@ const ProjectDetail = () => {
     );
   }
 
-  const configReady = configKey && hasConfigForVersion(configKey, project.versionType);
-
-  if (!project.hasConfig || !configKey || !configReady) {
+  if (!projectHasRatingConfig(project)) {
     return (
       <DashboardLayout>
         <div className="space-y-4">
           <p className="text-sm text-muted-foreground">
             {project.projectCode} / {project.projectName}
           </p>
-          <div
-            className="rounded-2xl border border-border bg-card p-8 shadow-card"
-          >
+          <div className="rounded-2xl border border-border bg-card p-8 shadow-card">
             <h1 className="text-lg font-semibold text-foreground">Configuration coming soon</h1>
             <p className="mt-2 text-sm text-muted-foreground">
               <strong>{project.ratingTypeName}</strong> (rating type #{project.ratingTypeId}) is registered for
-              this project (version {project.versionType}), but the dynamic form JSON has not been added to the portal yet.
+              this project (version {project.versionType}), but the certification JSON is not available on the
+              server yet.
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
-              Add a JSON export and register it in <code className="rounded bg-muted px-1">ratingConfigRegistry.ts</code>{" "}
-              under <code className="rounded bg-muted px-1">configsByVersion["{project.versionType}"]</code>.
+              Add the file under{" "}
+              <code className="rounded bg-muted px-1">igbc-backend/src/rating-config/configs/</code> and register
+              it in{" "}
+              <code className="rounded bg-muted px-1">rating-config.registry.ts</code>.
             </p>
             <Link to="/projects" className="mt-6 inline-block text-sm font-medium text-ocean hover:underline">
               ← Back to My Projects
@@ -130,16 +120,7 @@ const ProjectDetail = () => {
     );
   }
 
-  return (
-    <GreenHomesProjectWorkspace
-      projectId={project.id}
-      projectLabel={`${project.projectCode} / ${project.projectName}`}
-      ratingTypeName={project.ratingTypeName}
-      versionType={project.versionType}
-      ratingKey={configKey}
-      ratingTypeId={project.ratingTypeId}
-    />
-  );
+  return <GreenHomesProjectWorkspace projectId={project.id} />;
 };
 
 export default ProjectDetail;

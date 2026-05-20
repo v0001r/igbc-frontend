@@ -17,10 +17,10 @@ const colorMap = {
 };
 
 const sparkColors: Record<string, string> = {
-  primary: "hsl(152, 55%, 38%)",
+  primary: "#1f8e48",
   success: "hsl(142, 71%, 45%)",
   warning: "hsl(38, 92%, 50%)",
-  info: "hsl(217, 91%, 60%)",
+  info: "#1f8e48",
 };
 
 const defaultSpark = [30, 50, 35, 60, 45, 70, 55, 80, 65, 90, 75, 95];
