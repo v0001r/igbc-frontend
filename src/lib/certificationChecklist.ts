@@ -3,9 +3,14 @@ import {
   getFieldsForTabSubtab,
   getSubtabsForTab,
   type GreenHomesRuntimeConfig,
+  type GreenHomesSubtab,
   type GreenHomesTab,
 } from "@/lib/greenHomesConfig";
 import { subtabCompletionPercent } from "@/lib/certificationProgress";
+import {
+  computeChecklistAttempted,
+  resolveChecklistContext,
+} from "@/lib/checklistScoring";
 
 export type ChecklistCreditRow = {
   tabSlug: string;
@@ -36,9 +41,33 @@ function isChecklistSubtab(sub: { checklist?: boolean; points?: number }): boole
   return (sub.points ?? 0) > 0;
 }
 
+function resolveAttemptedPoints(
+  ratingTypeId: number,
+  config: GreenHomesRuntimeConfig,
+  form: CertificationFormResponse,
+  tabSlug: string,
+  sub: GreenHomesSubtab,
+): number {
+  const possible = sub.points ?? 0;
+  const ctx = resolveChecklistContext(form);
+  const fromRules = computeChecklistAttempted(
+    ratingTypeId,
+    form,
+    tabSlug,
+    sub.sub_slug,
+    possible,
+    ctx,
+  );
+  if (fromRules !== null) return fromRules;
+
+  const pct = subtabCompletionPercent(config, form, tabSlug, sub);
+  return pct === 100 ? possible : 0;
+}
+
 export function buildCertificationChecklist(
   config: GreenHomesRuntimeConfig,
   form: CertificationFormResponse,
+  ratingTypeId: number,
 ): ChecklistSummary {
   const tabs = Array.isArray(config.tabs) ? config.tabs : [];
   const groups: ChecklistTabGroup[] = [];
@@ -58,8 +87,7 @@ export function buildCertificationChecklist(
     for (const sub of subtabs) {
       const possible = sub.points ?? 0;
       const pct = subtabCompletionPercent(config, form, tab.slug, sub);
-      const complete = pct === 100;
-      const attempted = complete ? possible : 0;
+      const attempted = resolveAttemptedPoints(ratingTypeId, config, form, tab.slug, sub);
 
       rows.push({
         tabSlug: tab.slug,
@@ -69,7 +97,7 @@ export function buildCertificationChecklist(
         possiblePoints: possible,
         attemptedPoints: attempted,
         completionPercent: pct,
-        isAttempted: complete || (pct != null && pct > 0),
+        isAttempted: attempted > 0,
       });
 
       tabPossible += possible;
@@ -91,6 +119,7 @@ export function creditsForTab(
   config: GreenHomesRuntimeConfig,
   form: CertificationFormResponse,
   tabSlug: string,
+  ratingTypeId: number,
 ): ChecklistCreditRow[] {
   const tab = (config.tabs ?? []).find((t) => t.slug === tabSlug);
   if (!tab) return [];
@@ -100,16 +129,16 @@ export function creditsForTab(
     .map((sub) => {
       const possible = sub.points ?? 0;
       const pct = subtabCompletionPercent(config, form, tabSlug, sub);
-      const complete = pct === 100;
+      const attempted = resolveAttemptedPoints(ratingTypeId, config, form, tabSlug, sub);
       return {
         tabSlug,
         tabName: tab.name,
         subSlug: sub.sub_slug,
         creditName: sub.name,
         possiblePoints: possible,
-        attemptedPoints: complete ? possible : 0,
+        attemptedPoints: attempted,
         completionPercent: pct,
-        isAttempted: complete || (pct != null && pct > 0),
+        isAttempted: attempted > 0,
       };
     });
 }

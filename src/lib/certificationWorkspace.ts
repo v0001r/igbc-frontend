@@ -2,6 +2,7 @@ import { getAccessToken } from "@/lib/auth";
 import type { CertificationFormResponse } from "@/lib/certificationForm";
 import type { GreenHomesRuntimeConfig } from "@/lib/greenHomesConfig";
 import type { AnnexureBladeRoute } from "@/lib/annexureRegistry";
+import type { AnnexureSchemaDefinition } from "@/annexure/annexureTypes";
 import type { FieldRuleSet } from "@/lib/fieldRules";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
@@ -20,6 +21,7 @@ export type CertificationWorkspaceResponse = {
   form: CertificationFormResponse;
   annexureRoutes: AnnexureBladeRoute[];
   fieldRules: Record<string, FieldRuleSet>;
+  annexureSchemas?: Record<string, AnnexureSchemaDefinition>;
 };
 
 export async function fetchCertificationWorkspace(

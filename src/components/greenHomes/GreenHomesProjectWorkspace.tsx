@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { AnnexureRendererHandle } from "@/annexure/components/AnnexureRenderer";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { CertificationChecklistView } from "@/components/greenHomes/CertificationChecklistView";
 import {
@@ -29,6 +30,7 @@ import {
 import { getFieldsHiddenByRules, getRulesForSection } from "@/lib/fieldRules";
 import { fieldsControlledBy, isControlChecked, isFieldVisible } from "@/lib/fieldVisibility";
 import { createFieldValueContext, resolveFieldValue, shouldPersistField } from "@/lib/ratingFieldValue";
+import { RatingDataIndex } from "@/lib/ratingDataIndex";
 import { ChevronLeft, FileBadge, Loader2 } from "lucide-react";
 
 type Props = {
@@ -53,6 +55,7 @@ export function GreenHomesProjectWorkspace({ projectId }: Props) {
   const [pendingFiles, setPendingFiles] = useState<Record<string, File[]>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const annexSaveRef = useRef<AnnexureRendererHandle | null>(null);
 
   const config = workspace?.config;
   const formState = workspace?.form ?? null;
@@ -120,15 +123,34 @@ export function GreenHomesProjectWorkspace({ projectId }: Props) {
   }, [valueContext, fields, localValues]);
 
   const checklistSummary = useMemo(() => {
-    if (!config || !formState) return null;
-    return buildCertificationChecklist(config, formState);
-  }, [config, formState]);
+    if (!config || !formState || !workspace) return null;
+    return buildCertificationChecklist(config, formState, workspace.ratingTypeId);
+  }, [config, formState, workspace]);
 
   const currentSubtabMeta = useMemo(
     () => subtabs.find((s) => s.sub_slug === currentSubtab),
     [subtabs, currentSubtab],
   );
   const formTitle = currentSubtabMeta?.name ?? "Section";
+
+  const annexGlobalExtras = useMemo(() => {
+    if (!formState) return {};
+    const idx = new RatingDataIndex(formState);
+    return {
+      site_area: idx.getRelated("site_area", "sustainable_design"),
+      rainwater_harvesting_capacity:
+        idx.get("project_details", "water_conservation_details", "rainwater_harvesting_capacity") ||
+        idx.getRelated("rainwater_harvesting_capacity", "water_conservation"),
+      occupancy:
+        idx.get("project_details", "project_details", "occupancy_green") ||
+        idx.getRelated("occupancy_green", "project_details") ||
+        idx.get("project_details", "project_details", "occupancy") ||
+        idx.getRelated("occupancy", "project_details"),
+      capacity_of_stp:
+        idx.get("project_details", "water_conservation_details", "capacity_of_stp") ||
+        idx.getRelated("capacity_of_stp", "water_conservation"),
+    };
+  }, [formState]);
 
   const fieldNames = useMemo(
     () => fields.map((f) => f.name ?? "").filter(Boolean),
@@ -257,7 +279,11 @@ export function GreenHomesProjectWorkspace({ projectId }: Props) {
       const persistable = fields.filter(
         (f) => shouldPersistField(f, saveCtx) && isFieldVisible(f, saveValues),
       );
-      const payloadFields = buildNonFileSaveFields(persistable, { ...sectionValues, ...localValues });
+      const annexPayload = annexSaveRef.current?.getSaveFields() ?? [];
+      const payloadFields = [
+        ...buildNonFileSaveFields(persistable, { ...sectionValues, ...localValues }),
+        ...annexPayload,
+      ];
       const saved = await saveCertificationSection(projectId, {
         tab: currentTab,
         subtab: currentSubtab,
@@ -389,16 +415,21 @@ export function GreenHomesProjectWorkspace({ projectId }: Props) {
                   title={formTitle}
                   tab={currentTab}
                   subtab={currentSubtab}
+                  ratingKey={workspace.ratingKey}
                   versionType={workspace.versionType}
                   ratingTypeId={workspace.ratingTypeId}
                   annexureRoutes={annexureRoutes}
-                  fieldRules={workspace.fieldRules ?? {}}
+                  annexureSchemas={workspace.annexureSchemas ?? {}}
                   fields={fields}
                   formState={formState}
                   localValues={localValues}
+                  sectionValues={sectionValues}
+                  annexGlobalExtras={annexGlobalExtras}
                   errors={errors}
+                  fieldRules={workspace.fieldRules ?? {}}
                   onChange={onFieldChange}
                   onFilesChange={onFilesChange}
+                  annexSaveRef={annexSaveRef}
                 />
               ) : null}
 
