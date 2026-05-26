@@ -32,17 +32,15 @@ const AdminHeader = ({ title, onNavigate }: AdminHeaderProps) => {
       className="h-12 bg-card/90 backdrop-blur-md border-b border-border flex items-center justify-between px-5 sticky top-0 z-40"
       style={{ boxShadow: "0 1px 2px hsl(0 0% 0% / 0.03)" }}
     >
-      <h1 className="text-[13px] font-semibold text-foreground">{title}</h1>
+      <div className="relative hidden md:block">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+        <input
+          type="text"
+          placeholder="Search..."
+          className="filter-input pl-8 pr-3 py-1 w-44 text-[11px] rounded-full"
+        />
+      </div>
       <div className="flex items-center gap-2.5">
-        <div className="relative hidden md:block">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search..."
-            className="filter-input pl-8 pr-3 py-1 w-44 text-[11px] rounded-full"
-          />
-        </div>
-
         <button className="relative p-1.5 rounded-full transition-colors hover:bg-muted">
           <Bell className="w-4 h-4 text-muted-foreground" />
           {notifications > 0 && (

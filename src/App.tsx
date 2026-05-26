@@ -18,6 +18,7 @@ import MyMembership from "./components/pages/MyMembership.tsx";
 import Login from "./components/pages/Login.tsx";
 import Register from "./components/pages/Register.tsx";
 import ProjectDetail from "./components/pages/ProjectDetail.tsx";
+import ApplyCertification from "./components/pages/ApplyCertification.tsx";
 import NotFound from "./components/pages/NotFound.tsx";
 import AdminModule from "./admin/AdminModule.tsx";
 
@@ -78,6 +79,7 @@ const App = () => (
             <Route path="/ap-exam" element={<APExam />} />
             <Route path="/exams" element={<MyExams />} />
             <Route path="/projects" element={<Projects />} />
+            <Route path="/projects/apply-certification/:id" element={<ApplyCertification />} />
             <Route path="/project/:id" element={<ProjectDetail />} />
             <Route path="/register-project" element={<RegisterProject />} />
             <Route path="/nest-plus" element={<NestPlus />} />

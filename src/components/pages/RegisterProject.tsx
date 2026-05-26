@@ -1,7 +1,29 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { motion, AnimatePresence } from "framer-motion";
 import { Building2, ChevronLeft, ChevronRight, Check, FileText, CreditCard, Users, ClipboardList } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { getCurrentUser } from "@/lib/auth";
+import {
+  calculateProjectRegistrationFee,
+  getProjectFeeRuleByRatingSystem,
+  isValidProjectCouponCode,
+  setProjectRegistrationFeeConfig,
+} from "../../lib/projectRegistrationFee";
+import {
+  createProjectStepOne,
+  getProjectCategoryRatingSystems,
+  getProjectCategories,
+  getProjectRegistrationFeeMasters,
+  getProjectResume,
+  type ProjectResumeStepOne,
+  type ProjectCategoryRatingSystem,
+  updateProjectStepTwoDetails,
+  updateProjectStepThreeContacts,
+  updateProjectRegistrationInvoice,
+  updateProjectRegistrationPayment,
+} from "@/lib/projectRegistration";
 
 const steps = [
   { id: 1, title: "Project Category", icon: Building2 },
@@ -12,11 +34,22 @@ const steps = [
 ];
 
 const RegisterProject = () => {
+  const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const userId = getCurrentUser()?.id;
   const [step, setStep] = useState(1);
+  const [registrationId, setRegistrationId] = useState("");
+  const [temporaryProjectId, setTemporaryProjectId] = useState("");
+  const [loadingMasters, setLoadingMasters] = useState(true);
+  const [loadingResume, setLoadingResume] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [pendingResumeStepOne, setPendingResumeStepOne] = useState<ProjectResumeStepOne | null>(null);
+  const [resumeBaseRegistrationFee, setResumeBaseRegistrationFee] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     category: "",
     constructionType: "",
     ratingSystem: "",
+    ratingSpecific: "",
     projectType: "",
     projectName: "",
     siteAddress: "",
@@ -26,6 +59,7 @@ const RegisterProject = () => {
     siteAreaSqm: "",
     siteAreaSqft: "",
     numBuildings: "1",
+    builtUpAreaSqm: "",
     builtUpArea: "",
     constructionStart: "",
     certificationTarget: "",
@@ -53,6 +87,11 @@ const RegisterProject = () => {
     architectOrg: "",
     architectMobile: "",
     architectEmail: "",
+    consultantFirstName: "",
+    consultantLastName: "",
+    consultantOrg: "",
+    consultantMobile: "",
+    consultantEmail: "",
     invoiceOrg: "",
     invoiceAddress: "",
     invoiceCity: "",
@@ -65,6 +104,7 @@ const RegisterProject = () => {
     deductTds: "",
     couponCode: "",
     paymentMethod: "online",
+    paymentType: "Demand Draft",
     ddNumber: "",
     ifscCode: "",
     bankName: "",
@@ -82,6 +122,12 @@ const RegisterProject = () => {
     if (field === "siteAreaSqft" && value) {
       setFormData((prev) => ({ ...prev, siteAreaSqm: (parseFloat(value) / 10.764).toFixed(0) }));
     }
+    if (field === "builtUpAreaSqm" && value) {
+      setFormData((prev) => ({ ...prev, builtUpArea: (parseFloat(value) * 10.764).toFixed(0) }));
+    }
+    if (field === "builtUpArea" && value) {
+      setFormData((prev) => ({ ...prev, builtUpAreaSqm: (parseFloat(value) / 10.764).toFixed(0) }));
+    }
   };
 
   const goTo = (s: number) => {
@@ -90,37 +136,566 @@ const RegisterProject = () => {
   };
 
   const [submitted, setSubmitted] = useState(false);
+  const [categories, setCategories] = useState<Array<{ id: string; label: string; icon: string; desc: string }>>([]);
+  const [ratingSystems, setRatingSystems] = useState<ProjectCategoryRatingSystem[]>([]);
 
-  const categories = [
-    { id: "commercial", label: "Commercial", icon: "🏢", desc: "Offices, IT Parks, Retail" },
-    { id: "residential", label: "Residential", icon: "🏠", desc: "Apartments, Villas, Townships" },
-    { id: "industrial", label: "Industrial", icon: "🏭", desc: "Factories, Warehouses" },
-    { id: "healthcare", label: "Healthcare", icon: "🏥", desc: "Hospitals, Clinics" },
-    { id: "education", label: "Education", icon: "🎓", desc: "Schools, Universities" },
-    { id: "hospitality", label: "Hospitality", icon: "🏨", desc: "Hotels, Resorts" },
+  const fallbackCategories = [
+    { id: "1", label: "Residential", icon: "🏠", desc: "Apartments, Villas, Townships" },
+    { id: "2", label: "Commercial", icon: "🏢", desc: "Offices, IT Parks, Retail" },
+    { id: "3", label: "Industrial", icon: "🏭", desc: "Factories, Warehouses" },
+    { id: "4", label: "Educational", icon: "🎓", desc: "Schools, Universities" },
+    { id: "5", label: "Health and Wellbeing", icon: "🏥", desc: "Hospitals, Clinics" },
+    { id: "7", label: "Green Built Environment", icon: "🌿", desc: "Urban and campus environments" },
   ];
 
-  const ratingSystems = [
-    { id: "green-new", label: "Green New Buildings", desc: "For new construction projects" },
-    { id: "green-existing", label: "Green Existing Buildings", desc: "For operational buildings" },
-    { id: "green-interiors", label: "Green Interiors", desc: "For interior fit-outs" },
-    { id: "green-homes", label: "Green Homes", desc: "For residential buildings" },
-    { id: "green-cities", label: "Green Cities", desc: "For urban development" },
-    { id: "green-factory", label: "Green Factory Buildings", desc: "For manufacturing facilities" },
-  ];
-
-  const projectTypes: Record<string, string[]> = {
-    commercial: ["Offices", "Banks", "Hotels", "IT Parks", "Retail Malls", "Convention Centers"],
-    residential: ["Apartments", "Villas", "Row Houses", "Plotted Development", "Townships"],
-    industrial: ["Factories", "Warehouses", "Data Centers", "Logistics Parks"],
-    healthcare: ["Hospitals", "Multi-specialty Clinics", "Diagnostics Centers"],
-    education: ["Schools", "Universities", "Research Centers", "Training Institutes"],
-    hospitality: ["Hotels", "Resorts", "Service Apartments", "Banquet Halls"],
+  const categoryMetaByName: Record<string, { icon: string; desc: string }> = {
+    residential: { icon: "🏠", desc: "Apartments, Villas, Townships" },
+    commercial: { icon: "🏢", desc: "Offices, IT Parks, Retail" },
+    industrial: { icon: "🏭", desc: "Factories, Warehouses" },
+    educational: { icon: "🎓", desc: "Schools, Universities" },
+    "health and wellbeing": { icon: "🏥", desc: "Hospitals, Clinics" },
+    "green built environment": { icon: "🌿", desc: "Urban and campus environments" },
   };
 
-  const registrationFee = formData.category === "residential" ? 29500 : formData.category === "commercial" ? 35400 : 25000;
-  const gstAmount = registrationFee * 0.18;
-  const totalAmount = registrationFee + gstAmount;
+  useEffect(() => {
+    const loadStep1Masters = async () => {
+      setLoadingMasters(true);
+      try {
+        const categoryMasters = await getProjectCategories();
+        const apiCategories = (categoryMasters.categories ?? [])
+          .filter((item) => item?.id !== undefined && item?.name)
+          .map((item) => {
+            const normalized = String(item.name).trim().toLowerCase();
+            const meta = categoryMetaByName[normalized] ?? { icon: "🏗️", desc: "Project category" };
+            return {
+              id: String(item.id),
+              label: String(item.name),
+              icon: meta.icon,
+              desc: meta.desc,
+            };
+          });
+        setCategories(apiCategories.length > 0 ? apiCategories : fallbackCategories);
+      } catch (error) {
+        setCategories(fallbackCategories);
+        toast({
+          title: "Unable to load project categories",
+          description: error instanceof Error ? `${error.message}. Showing fallback categories.` : "Please retry.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingMasters(false);
+      }
+    };
+    void loadStep1Masters();
+  }, [toast]);
+
+  useEffect(() => {
+    const loadFeeMasters = async () => {
+      try {
+        const feeMasters = await getProjectRegistrationFeeMasters();
+        setProjectRegistrationFeeConfig(feeMasters);
+      } catch (error) {
+        toast({
+          title: "Unable to load fee rules",
+          description: error instanceof Error ? `${error.message}. Fee preview may be unavailable.` : "Please retry.",
+          variant: "destructive",
+        });
+      }
+    };
+    void loadFeeMasters();
+  }, [toast]);
+
+  useEffect(() => {
+    const projectId = searchParams.get("projectId");
+    if (!projectId) {
+      return;
+    }
+
+    const loadResumeData = async () => {
+      setLoadingResume(true);
+      try {
+        const response = await getProjectResume(projectId);
+        setRegistrationId(String(response.projectId ?? projectId));
+        setPendingResumeStepOne(response.stepOne ?? null);
+
+        if (response.stepOne?.category !== undefined) {
+          update("category", String(response.stepOne.category));
+        }
+        if (response.stepOne?.constructionType) {
+          update("constructionType", response.stepOne.constructionType);
+        }
+        if (response.stepOne?.projectType) {
+          update("projectType", response.stepOne.projectType);
+        }
+        const stepOneRegistrationFee = (response.stepOne as Record<string, unknown> | undefined)?.registrationFee;
+        if (typeof stepOneRegistrationFee === "number" && Number.isFinite(stepOneRegistrationFee)) {
+          setResumeBaseRegistrationFee(stepOneRegistrationFee);
+        }
+
+        if (response.stepTwo) {
+          update("projectName", response.stepTwo.projectName ?? "");
+          update("siteAddress", response.stepTwo.address ?? "");
+          update("city", response.stepTwo.city ?? "");
+          update("state", response.stepTwo.state ?? "");
+          update("pincode", response.stepTwo.pincode ?? "");
+          update("siteAreaSqm", response.stepTwo.siteAreaSqm ? String(response.stepTwo.siteAreaSqm) : "");
+          update("siteAreaSqft", response.stepTwo.siteAreaSqft ? String(response.stepTwo.siteAreaSqft) : "");
+          update("numBuildings", response.stepTwo.numberOfBuildings ? String(response.stepTwo.numberOfBuildings) : "1");
+          update("builtUpAreaSqm", response.stepTwo.totalBuiltUpAreaSqm ? String(response.stepTwo.totalBuiltUpAreaSqm) : "");
+          update("builtUpArea", response.stepTwo.totalBuiltUpAreaSqft ? String(response.stepTwo.totalBuiltUpAreaSqft) : "");
+          update("constructionStart", response.stepTwo.constructionStartDate ?? "");
+          update("certificationTarget", response.stepTwo.targetCertificationDate ?? "");
+        }
+
+        const responseRecord = response as Record<string, unknown>;
+        const rawStepThree =
+          (responseRecord.stepThree as Record<string, unknown> | undefined) ??
+          (responseRecord.projectContacts as Record<string, unknown> | undefined) ??
+          (responseRecord.contacts as Record<string, unknown> | undefined) ??
+          (responseRecord.step3 as Record<string, unknown> | undefined);
+        const stepThreeFormData =
+          rawStepThree && typeof rawStepThree.formData === "object"
+            ? (rawStepThree.formData as Record<string, unknown>)
+            : rawStepThree;
+
+        if (stepThreeFormData && typeof stepThreeFormData === "object") {
+          const contacts = stepThreeFormData as Record<string, unknown>;
+          const parentOrganization = (contacts.parentOrganization ?? {}) as Record<string, unknown>;
+          const projectOwner = (contacts.projectOwner ?? contacts.owner ?? {}) as Record<string, unknown>;
+          const projectCoordinator = (contacts.projectCoordinator ?? contacts.coordinator ?? {}) as Record<string, unknown>;
+          const architect = (contacts.architect ?? {}) as Record<string, unknown>;
+          const consultant = (contacts.consultant ?? {}) as Record<string, unknown>;
+
+          const isIgbcMemberValue =
+            parentOrganization.isIgbcMember === true
+              ? "Yes"
+              : parentOrganization.isIgbcMember === false
+              ? "No"
+              : "";
+          update("isIgbcMember", isIgbcMemberValue);
+          update("parentOrgName", String(parentOrganization.organizationName ?? parentOrganization.name ?? ""));
+          update("parentOrgAddress", String(parentOrganization.address ?? ""));
+          update("parentOrgCity", String(parentOrganization.city ?? ""));
+          update("parentOrgState", String(parentOrganization.state ?? ""));
+          update("parentOrgPincode", String(parentOrganization.pincode ?? ""));
+
+          update("ownerSalutation", String(projectOwner.salutation ?? ""));
+          update("ownerFirstName", String(projectOwner.firstName ?? ""));
+          update("ownerLastName", String(projectOwner.lastName ?? ""));
+          update("ownerOrg", String(projectOwner.organization ?? ""));
+          update("ownerDesignation", String(projectOwner.designation ?? ""));
+          update("ownerMobile", String(projectOwner.mobile ?? ""));
+          update("ownerEmail", String(projectOwner.email ?? ""));
+
+          update("coordFirstName", String(projectCoordinator.firstName ?? ""));
+          update("coordLastName", String(projectCoordinator.lastName ?? ""));
+          update("coordOrg", String(projectCoordinator.organization ?? ""));
+          update("coordDesignation", String(projectCoordinator.designation ?? ""));
+          update("coordMobile", String(projectCoordinator.mobile ?? ""));
+          update("coordEmail", String(projectCoordinator.email ?? ""));
+
+          update("architectFirstName", String(architect.firstName ?? ""));
+          update("architectLastName", String(architect.lastName ?? ""));
+          update("architectOrg", String(architect.organization ?? ""));
+          update("architectMobile", String(architect.mobile ?? ""));
+          update("architectEmail", String(architect.email ?? ""));
+
+          update("consultantFirstName", String(consultant.firstName ?? ""));
+          update("consultantLastName", String(consultant.lastName ?? ""));
+          update("consultantOrg", String(consultant.organization ?? ""));
+          update("consultantMobile", String(consultant.mobile ?? ""));
+          update("consultantEmail", String(consultant.email ?? ""));
+        }
+
+        const rawStepFour =
+          (responseRecord.stepFour as Record<string, unknown> | undefined) ??
+          (responseRecord.projectInvoice as Record<string, unknown> | undefined) ??
+          (responseRecord.invoice as Record<string, unknown> | undefined) ??
+          (responseRecord.step4 as Record<string, unknown> | undefined);
+
+        if (rawStepFour && typeof rawStepFour === "object") {
+          update("invoiceOrg", String(rawStepFour.organizationName ?? rawStepFour.organization ?? ""));
+          update("invoiceAddress", String(rawStepFour.organizationAddress ?? rawStepFour.address ?? ""));
+          update("invoiceCity", String(rawStepFour.city ?? ""));
+          update("invoiceState", String(rawStepFour.state ?? ""));
+          update("invoicePincode", String(rawStepFour.pincode ?? ""));
+          update("pan", String(rawStepFour.panNumber ?? rawStepFour.pan ?? ""));
+          update("hasGst", rawStepFour.hasGst === true ? "Yes" : rawStepFour.hasGst === false ? "No" : "");
+          update("gstNumber", String(rawStepFour.gstNumber ?? ""));
+          update("isSez", rawStepFour.sezSelected === true ? "Yes" : rawStepFour.sezSelected === false ? "No" : "");
+          update("deductTds", rawStepFour.tdsSelected === true ? "Yes" : rawStepFour.tdsSelected === false ? "No" : "");
+          update("couponCode", String(rawStepFour.couponCode ?? ""));
+          const stepFourBaseFee = rawStepFour.baseRegistrationFee;
+          const stepFourRegistrationFee = rawStepFour.registrationFee;
+          const candidateFee =
+            typeof stepFourBaseFee === "number" && Number.isFinite(stepFourBaseFee)
+              ? stepFourBaseFee
+              : typeof stepFourRegistrationFee === "number" && Number.isFinite(stepFourRegistrationFee)
+              ? stepFourRegistrationFee
+              : null;
+          if (candidateFee !== null) {
+            setResumeBaseRegistrationFee(candidateFee);
+          }
+        }
+
+        const rawStepFive =
+          (responseRecord.stepFive as Record<string, unknown> | undefined) ??
+          (responseRecord.projectPayment as Record<string, unknown> | undefined) ??
+          (responseRecord.payment as Record<string, unknown> | undefined) ??
+          (responseRecord.step5 as Record<string, unknown> | undefined);
+
+        if (rawStepFive && typeof rawStepFive === "object") {
+          update("paymentMethod", String(rawStepFive.paymentMethod ?? "online"));
+          update("paymentType", String(rawStepFive.paymentType ?? "Demand Draft"));
+          update("ddNumber", String(rawStepFive.transactionReference ?? ""));
+          update("ifscCode", String(rawStepFive.ifscCode ?? ""));
+          update("bankName", String(rawStepFive.bankName ?? ""));
+          update("bankBranch", String(rawStepFive.branch ?? ""));
+          update("paymentAmount", String(rawStepFive.amount ?? ""));
+          update("paymentDate", String(rawStepFive.paymentDate ?? ""));
+          update("paymentRemarks", String(rawStepFive.remarks ?? ""));
+        }
+
+        const statusValue = String(responseRecord.status ?? responseRecord.projectStatus ?? "").toLowerCase();
+        const isAlreadySubmitted =
+          statusValue === "submitted" ||
+          (typeof response.completedSteps === "number" &&
+            typeof response.totalSteps === "number" &&
+            response.completedSteps >= response.totalSteps) ||
+          (response.nextStep === null && Boolean(rawStepFive));
+
+        if (isAlreadySubmitted) {
+          setSubmitted(true);
+        }
+
+        const requestedStep = Number(searchParams.get("step"));
+        const fallbackStep = typeof response.nextStep === "number" ? response.nextStep : 1;
+        const initialStep = Number.isFinite(requestedStep) && requestedStep > 0 ? requestedStep : fallbackStep;
+        setStep(Math.max(1, Math.min(5, initialStep)));
+
+        if (response.message) {
+          toast({
+            title: "Project draft loaded",
+            description: response.message,
+          });
+        }
+      } catch (error) {
+        toast({
+          title: "Unable to resume project",
+          description: error instanceof Error ? error.message : "Please try again",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingResume(false);
+      }
+    };
+
+    void loadResumeData();
+  }, [searchParams, toast]);
+
+  const projectTypes: Record<string, string[]> = {
+    "1": ["Apartments", "Villas", "Row Houses", "Plotted Development", "Townships"],
+    "2": ["Offices", "Banks", "Hotels", "IT Parks", "Retail Malls", "Convention Centers"],
+    "3": ["Factories", "Warehouses", "Data Centers", "Logistics Parks"],
+    "4": ["Schools", "Universities", "Research Centers", "Training Institutes"],
+    "5": ["Hospitals", "Multi-specialty Clinics", "Diagnostics Centers"],
+    "7": ["Townships", "Mixed Use", "Campus Development", "Urban Infrastructure"],
+  };
+  const selectedRatingSystem = ratingSystems.find((item) => String(item.id) === formData.ratingSystem);
+  const selectedRatingLabel = selectedRatingSystem?.ratingName ?? formData.ratingSystem;
+  const selectedRatingSpecificRequired = (selectedRatingSystem?.specifics?.length ?? 0) > 0;
+  const selectedCategory = categories.find((item) => item.id === formData.category);
+
+  const selectedFeeRule = getProjectFeeRuleByRatingSystem(selectedRatingLabel);
+  const isRatingConstructionCompatible = Boolean(
+    !selectedFeeRule ||
+      !formData.constructionType ||
+      selectedFeeRule.compatibleConstructionTypes.includes(formData.constructionType),
+  );
+  const feePreview = calculateProjectRegistrationFee(selectedRatingLabel, {
+    deductTds: formData.deductTds === "Yes",
+    sezSelected: formData.isSez === "Yes",
+  });
+  const registrationFee = resumeBaseRegistrationFee ?? feePreview.registrationFee;
+  const gstPercent = feePreview.gstPercent ?? 18;
+  const gstAmount = formData.isSez === "Yes" ? 0 : Number(((registrationFee * gstPercent) / 100).toFixed(2));
+  const tdsAmount = formData.deductTds === "Yes" ? Number((registrationFee * 0.1).toFixed(2)) : 0;
+  const totalPayable = Math.max(0, Number((registrationFee + gstAmount - tdsAmount).toFixed(2)));
+
+  useEffect(() => {
+    const categoryId = Number(formData.category);
+    if (!formData.category || Number.isNaN(categoryId)) {
+      setRatingSystems([]);
+      update("ratingSystem", "");
+      update("ratingSpecific", "");
+      return;
+    }
+
+    const loadRatingSystems = async () => {
+      try {
+        const response = await getProjectCategoryRatingSystems(categoryId);
+        setRatingSystems(response.ratingSystems ?? []);
+      } catch (error) {
+        setRatingSystems([]);
+        toast({
+          title: "Unable to load rating systems",
+          description: error instanceof Error ? error.message : "Please retry.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    update("ratingSystem", "");
+    update("ratingSpecific", "");
+    void loadRatingSystems();
+  }, [formData.category, toast]);
+
+  useEffect(() => {
+    if (!pendingResumeStepOne || ratingSystems.length === 0) {
+      return;
+    }
+
+    const ratingValue = pendingResumeStepOne.ratingSystem;
+    if (ratingValue) {
+      const matched = ratingSystems.find(
+        (item) =>
+          String(item.id) === String(ratingValue) ||
+          item.ratingName === ratingValue ||
+          item.shortRatingName === ratingValue,
+      );
+      if (matched) {
+        update("ratingSystem", String(matched.id));
+      }
+    }
+
+    if (pendingResumeStepOne.subRatingType) {
+      update("ratingSpecific", pendingResumeStepOne.subRatingType);
+    }
+    setPendingResumeStepOne(null);
+  }, [pendingResumeStepOne, ratingSystems]);
+
+  const ensureRegistration = async () => {
+    if (registrationId) {
+      return registrationId;
+    }
+    const created = await createProjectStepOne({
+      category: Number(formData.category),
+      ratingSystem: selectedRatingLabel,
+      subRatingType: formData.ratingSpecific || undefined,
+      projectType: formData.projectType,
+      constructionType: formData.constructionType,
+    });
+    const id = String(created.id ?? "");
+    if (!id) {
+      throw new Error("Project could not be created");
+    }
+    setRegistrationId(id);
+    setTemporaryProjectId(created.temporaryProjectId ?? `P00${id}`);
+    return id;
+  };
+
+  const saveStep1 = async () => {
+    if (
+      !formData.category ||
+      !formData.constructionType ||
+      !formData.ratingSystem ||
+      !formData.projectType
+    ) {
+      toast({
+        title: "Complete project category details",
+        description: "Category, construction type, rating system and project type are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const upserted = await createProjectStepOne({
+        projectId: registrationId ? Number(registrationId) : undefined,
+        temporaryProjectId: temporaryProjectId || undefined,
+        category: Number(formData.category),
+        ratingSystem: selectedRatingLabel,
+        subRatingType: formData.ratingSpecific || undefined,
+        projectType: formData.projectType,
+        constructionType: formData.constructionType,
+      });
+      const id = String(upserted.id ?? "");
+      if (!id) {
+        throw new Error("Project could not be saved");
+      }
+      setRegistrationId(id);
+      setTemporaryProjectId(upserted.temporaryProjectId ?? temporaryProjectId ?? `P00${id}`);
+      goTo(2);
+    } catch (error) {
+      toast({
+        title: "Unable to save step 1",
+        description: error instanceof Error ? error.message : "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveStep2 = async () => {
+    setSaving(true);
+    try {
+      const id = await ensureRegistration();
+      await updateProjectStepTwoDetails(id, {
+        projectName: formData.projectName.trim(),
+        address: formData.siteAddress.trim(),
+        city: formData.city.trim(),
+        state: formData.state.trim(),
+        pincode: formData.pincode.trim(),
+        siteAreaSqm: Number(formData.siteAreaSqm || 0),
+        siteAreaSqft: Number(formData.siteAreaSqft || 0),
+        numberOfBuildings: Number(formData.numBuildings || 0),
+        totalBuiltUpAreaSqm: Number(formData.builtUpAreaSqm || 0),
+        totalBuiltUpAreaSqft: Number(formData.builtUpArea || 0),
+        constructionStartDate: formData.constructionStart || undefined,
+        targetCertificationDate: formData.certificationTarget || undefined,
+      });
+      goTo(3);
+    } catch (error) {
+      toast({
+        title: "Unable to save project details",
+        description: error instanceof Error ? error.message : "Please check the form and try again",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveStep3 = async () => {
+    setSaving(true);
+    try {
+      const id = await ensureRegistration();
+      await updateProjectStepThreeContacts(id, {
+        formData: {
+          parentOrganization: {
+            isIgbcMember: formData.isIgbcMember === "Yes",
+            organizationName: formData.parentOrgName.trim(),
+            address: formData.parentOrgAddress.trim(),
+            city: formData.parentOrgCity.trim(),
+            state: formData.parentOrgState.trim(),
+            pincode: formData.parentOrgPincode.trim(),
+          },
+          projectOwner: {
+            salutation: formData.ownerSalutation,
+            firstName: formData.ownerFirstName.trim(),
+            lastName: formData.ownerLastName.trim(),
+            organization: formData.ownerOrg.trim(),
+            designation: formData.ownerDesignation.trim(),
+            mobile: formData.ownerMobile.trim(),
+            email: formData.ownerEmail.trim().toLowerCase(),
+          },
+          projectCoordinator: {
+            firstName: formData.coordFirstName.trim(),
+            lastName: formData.coordLastName.trim(),
+            organization: formData.coordOrg.trim(),
+            designation: formData.coordDesignation.trim(),
+            mobile: formData.coordMobile.trim(),
+            email: formData.coordEmail.trim().toLowerCase(),
+          },
+          architect: {
+            firstName: formData.architectFirstName.trim(),
+            lastName: formData.architectLastName.trim(),
+            organization: formData.architectOrg.trim(),
+            mobile: formData.architectMobile.trim(),
+            email: formData.architectEmail.trim().toLowerCase(),
+          },
+          consultant: {
+            firstName: formData.consultantFirstName.trim() || undefined,
+            lastName: formData.consultantLastName.trim() || undefined,
+            organization: formData.consultantOrg.trim() || undefined,
+            mobile: formData.consultantMobile.trim() || undefined,
+            email: formData.consultantEmail.trim().toLowerCase() || undefined,
+          },
+        },
+      });
+      goTo(4);
+    } catch (error) {
+      toast({
+        title: "Unable to save contact details",
+        description: error instanceof Error ? error.message : "Please verify the contacts and try again",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveStep4 = async () => {
+    setSaving(true);
+    try {
+      const id = await ensureRegistration();
+      await updateProjectRegistrationInvoice(id, {
+        organizationName: formData.invoiceOrg.trim(),
+        organizationAddress: formData.invoiceAddress.trim(),
+        city: formData.invoiceCity.trim(),
+        state: formData.invoiceState.trim(),
+        pincode: formData.invoicePincode.trim(),
+        panNumber: formData.pan.trim().toUpperCase(),
+        hasGst: formData.hasGst === "Yes",
+        gstNumber: formData.gstNumber.trim().toUpperCase() || undefined,
+        sezSelected: formData.isSez === "Yes",
+        tdsSelected: formData.deductTds === "Yes",
+        registrationFee,
+        couponCode: formData.couponCode.trim() || undefined,
+      });
+      goTo(5);
+    } catch (error) {
+      toast({
+        title: "Unable to save invoice details",
+        description: error instanceof Error ? error.message : "Please check PAN/GST/coupon details",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const submitPaymentAndRegistration = async (paymentMode: "online" | "offline") => {
+    setSaving(true);
+    try {
+      const id = await ensureRegistration();
+      await updateProjectRegistrationPayment(id, {
+        paymentMethod: paymentMode,
+        gatewayResponse:
+          paymentMode === "online"
+            ? {
+                transactionId: `TRX-${Date.now()}`,
+                status: "success",
+                amount: totalPayable,
+                paymentDate: new Date().toISOString(),
+              }
+            : undefined,
+        paymentType: paymentMode === "offline" ? formData.paymentType || "Demand Draft" : undefined,
+        transactionReference: paymentMode === "offline" ? formData.ddNumber.trim() || undefined : undefined,
+        ifscCode: paymentMode === "offline" ? formData.ifscCode.trim() || undefined : undefined,
+        bankName: paymentMode === "offline" ? formData.bankName.trim() || undefined : undefined,
+        branch: paymentMode === "offline" ? formData.bankBranch.trim() || undefined : undefined,
+        amount: Number(formData.paymentAmount || totalPayable || 0),
+        paymentDate: formData.paymentDate || new Date().toISOString().slice(0, 10),
+        remarks: formData.paymentRemarks.trim() || undefined,
+      });
+      setSubmitted(true);
+      toast({
+        title: "Project submitted successfully",
+        description: "Step 5 completed. Your project has been submitted for review.",
+      });
+    } catch (error) {
+      toast({
+        title: "Unable to complete payment/submit",
+        description: error instanceof Error ? error.message : "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -187,7 +762,7 @@ const RegisterProject = () => {
             <p className="mt-2 text-sm text-muted-foreground">
               Your project <strong>{formData.projectName}</strong> has been submitted. You'll receive a confirmation email shortly.
             </p>
-            <p className="mt-1 font-mono text-sm text-primary">Project ID: PRJ-{Math.floor(1000 + Math.random() * 9000)}</p>
+            <p className="mt-1 font-mono text-sm text-primary">Project ID: {temporaryProjectId || registrationId || "Generated on submit"}</p>
             <div className="mt-6 flex justify-center gap-3">
               <button onClick={() => window.location.href = "/projects"} className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground">
                 View My Projects
@@ -202,13 +777,22 @@ const RegisterProject = () => {
                 <div className="rounded-2xl bg-card p-6 shadow-card sm:p-8">
                   <h2 className="text-lg font-bold text-foreground">Select Project Category</h2>
                   <p className="mt-1 text-sm text-muted-foreground">Choose the type that best describes your project</p>
+                  {categories.length === 0 && !loadingMasters && (
+                    <div className="mt-4 rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                      No categories available.
+                    </div>
+                  )}
                   <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
                     {categories.map((c) => (
                       <button
                         key={c.id}
-                        onClick={() => update("category", c.id)}
+                        onClick={() => {
+                          update("category", c.id);
+                        }}
                         className={`flex flex-col items-center gap-2 rounded-xl border-2 p-5 text-center transition-all hover:shadow-md ${
-                          formData.category === c.id ? "border-primary bg-primary-muted shadow-md" : "border-border bg-card hover:border-primary/30"
+                          formData.category === c.id
+                            ? "border-primary bg-primary-muted shadow-md"
+                            : "border-border bg-card hover:border-primary/30"
                         }`}
                       >
                         <span className="text-3xl">{c.icon}</span>
@@ -242,27 +826,61 @@ const RegisterProject = () => {
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl bg-card p-6 shadow-card sm:p-8">
                     <h2 className="text-lg font-bold text-foreground">Select Rating System</h2>
                     <p className="mt-1 text-sm text-muted-foreground">Choose the IGBC rating system for your project</p>
+                    {ratingSystems.length === 0 && (
+                      <div className="mt-4 rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+                        No rating systems are mapped to this category yet. Please choose another category or contact support.
+                      </div>
+                    )}
                     <div className="mt-4 grid gap-3 sm:grid-cols-2">
                       {ratingSystems.map((r) => (
                         <button
                           key={r.id}
-                          onClick={() => update("ratingSystem", r.id)}
+                          onClick={() => {
+                            update("ratingSystem", String(r.id));
+                            update("ratingSpecific", "");
+                          }}
                           className={`flex items-start gap-3 rounded-xl border-2 p-4 text-left transition-all ${
-                            formData.ratingSystem === r.id ? "border-primary bg-primary-muted" : "border-border hover:border-primary/30"
+                            formData.ratingSystem === String(r.id) ? "border-primary bg-primary-muted" : "border-border hover:border-primary/30"
                           }`}
                         >
                           <div className={`mt-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 ${
-                            formData.ratingSystem === r.id ? "border-primary bg-primary" : "border-muted-foreground"
+                            formData.ratingSystem === String(r.id) ? "border-primary bg-primary" : "border-muted-foreground"
                           }`}>
-                            {formData.ratingSystem === r.id && <Check className="h-3 w-3 text-primary-foreground" />}
+                            {formData.ratingSystem === String(r.id) && <Check className="h-3 w-3 text-primary-foreground" />}
                           </div>
                           <div>
-                            <p className="text-sm font-semibold text-foreground">{r.label}</p>
-                            <p className="text-xs text-muted-foreground">{r.desc}</p>
+                            <p className="text-sm font-semibold text-foreground">{r.ratingName}</p>
+                            <p className="text-xs text-muted-foreground">{r.shortRatingName ? `Code: ${r.shortRatingName}` : "IGBC rating system"}</p>
                           </div>
                         </button>
                       ))}
                     </div>
+                    {selectedRatingSpecificRequired && (
+                      <div className="mt-4">
+                        <p className="mb-2 text-sm font-medium text-foreground">Select Specific</p>
+                        <div className="flex flex-wrap gap-2">
+                          {(selectedRatingSystem?.specifics ?? []).map((specific) => (
+                            <button
+                              key={specific}
+                              type="button"
+                              onClick={() => update("ratingSpecific", specific)}
+                              className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
+                                formData.ratingSpecific === specific
+                                  ? "border-primary bg-primary-muted text-foreground"
+                                  : "border-border text-muted-foreground hover:border-primary/30"
+                              }`}
+                            >
+                              {specific}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {!isRatingConstructionCompatible && (
+                      <p className="mt-3 text-xs text-destructive">
+                        Selected rating system is not compatible with the chosen construction type.
+                      </p>
+                    )}
                   </motion.div>
                 )}
 
@@ -287,8 +905,17 @@ const RegisterProject = () => {
 
                 <div className="flex justify-end">
                   <button
-                    onClick={() => goTo(2)}
-                    disabled={!formData.category || !formData.constructionType || !formData.ratingSystem}
+                    onClick={() => void saveStep1()}
+                    disabled={
+                      loadingMasters ||
+                      loadingResume ||
+                      saving ||
+                      !formData.category ||
+                      !formData.constructionType ||
+                      !formData.ratingSystem ||
+                      !formData.projectType ||
+                      !isRatingConstructionCompatible
+                    }
                     className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground shadow-md transition-all hover:shadow-lg disabled:opacity-40"
                   >
                     Next <ChevronRight className="h-4 w-4" />
@@ -307,7 +934,7 @@ const RegisterProject = () => {
                     <div>
                       <label className="mb-1.5 block text-sm font-medium text-foreground">Rating Name</label>
                       <input
-                        value={ratingSystems.find((r) => r.id === formData.ratingSystem)?.label || ""}
+                        value={formData.ratingSpecific ? `${selectedRatingLabel} - ${formData.ratingSpecific}` : selectedRatingLabel}
                         readOnly
                         className="h-11 w-full rounded-lg border border-input bg-ghost px-4 text-sm text-muted-foreground"
                       />
@@ -388,6 +1015,9 @@ const RegisterProject = () => {
                     </div>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <InputField label="Number of Buildings *" value={formData.numBuildings} onChange={(v) => update("numBuildings", v)} type="number" />
+                      <InputField label="Buildup area in (S.Qm) *" value={formData.builtUpAreaSqm} onChange={(v) => update("builtUpAreaSqm", v)} type="number" />
+                    </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <InputField label="Total Built-up Area (sq. ft) *" value={formData.builtUpArea} onChange={(v) => update("builtUpArea", v)} type="number" />
                     </div>
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -402,7 +1032,7 @@ const RegisterProject = () => {
                     <ChevronLeft className="h-4 w-4" /> Previous
                   </button>
                   <button
-                    onClick={() => goTo(3)}
+                    onClick={() => void saveStep2()}
                     disabled={!formData.projectName || !formData.siteAddress || !formData.city}
                     className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground shadow-md disabled:opacity-40"
                   >
@@ -419,7 +1049,7 @@ const RegisterProject = () => {
                   <div className="mb-1 flex items-center gap-2">
                     <h2 className="text-lg font-bold text-foreground">Parent Organization</h2>
                   </div>
-                  <p className="text-sm text-muted-foreground">Rating: <span className="font-medium text-foreground">{ratingSystems.find((r) => r.id === formData.ratingSystem)?.label}</span></p>
+                  <p className="text-sm text-muted-foreground">Rating: <span className="font-medium text-foreground">{formData.ratingSpecific ? `${selectedRatingLabel} - ${formData.ratingSpecific}` : selectedRatingLabel}</span></p>
                   <div className="mt-5 space-y-4">
                     <div>
                       <label className="mb-1.5 block text-sm font-medium text-foreground">Is your parent organization an IGBC Member?</label>
@@ -475,13 +1105,22 @@ const RegisterProject = () => {
                   prefix="architect"
                   formData={formData}
                   update={update}
+                  requiredFields={false}
+                />
+
+                <ContactCard
+                  title="Consultant"
+                  prefix="consultant"
+                  formData={formData}
+                  update={update}
+                  requiredFields={false}
                 />
 
                 <div className="flex justify-between">
                   <button onClick={() => goTo(2)} className="flex items-center gap-2 rounded-xl border border-border px-6 py-3 text-sm font-medium text-foreground hover:bg-muted">
                     <ChevronLeft className="h-4 w-4" /> Previous
                   </button>
-                  <button onClick={() => goTo(4)} className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground shadow-md">
+                  <button onClick={() => void saveStep3()} className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground shadow-md">
                     Save & Continue <ChevronRight className="h-4 w-4" />
                   </button>
                 </div>
@@ -583,7 +1222,22 @@ const RegisterProject = () => {
                               placeholder="Enter code"
                               className="h-11 flex-1 rounded-lg border border-input bg-background px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                             />
-                            <button className="rounded-lg bg-primary/10 px-5 text-sm font-semibold text-primary hover:bg-primary/20">Apply</button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const valid = isValidProjectCouponCode(formData.couponCode);
+                                toast({
+                                  title: valid ? "Coupon applied" : "Coupon check",
+                                  description: valid
+                                    ? "Coupon accepted from fee masters."
+                                    : "Coupon will be validated on invoice save.",
+                                  ...(valid ? {} : { variant: "destructive" as const }),
+                                });
+                              }}
+                              className="rounded-lg bg-primary/10 px-5 text-sm font-semibold text-primary hover:bg-primary/20"
+                            >
+                              Apply
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -597,23 +1251,32 @@ const RegisterProject = () => {
                       <div className="mt-5 space-y-3 border-b border-border pb-4">
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Registration Fee</span>
-                          <span className="font-mono font-semibold text-foreground">₹{registrationFee.toLocaleString()}</span>
+                          <span className="font-mono font-semibold text-foreground">
+                            ₹{registrationFee.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">GST (18%)</span>
-                          <span className="font-mono font-semibold text-foreground">₹{gstAmount.toLocaleString()}</span>
+                          <span className="font-mono font-semibold text-foreground">
+                            ₹{gstAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
                         </div>
+                        {formData.isSez === "Yes" && (
+                          <p className="text-xs text-primary">SEZ selected: GST is not applied.</p>
+                        )}
                         {formData.deductTds === "Yes" && (
                           <div className="flex justify-between text-sm">
                             <span className="text-muted-foreground">TDS Deduction (10%)</span>
-                            <span className="font-mono font-semibold text-destructive">-₹{(registrationFee * 0.1).toLocaleString()}</span>
+                            <span className="font-mono font-semibold text-destructive">
+                              -₹{tdsAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
                           </div>
                         )}
                       </div>
                       <div className="mt-4 flex justify-between">
                         <span className="font-semibold text-foreground">Total Payable</span>
                         <span className="font-mono text-xl font-bold text-primary">
-                          ₹{(formData.deductTds === "Yes" ? totalAmount - registrationFee * 0.1 : totalAmount).toLocaleString()}
+                          ₹{totalPayable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </div>
                       <button className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-border py-3 text-sm font-medium text-foreground hover:bg-muted">
@@ -627,7 +1290,7 @@ const RegisterProject = () => {
                   <button onClick={() => goTo(3)} className="flex items-center gap-2 rounded-xl border border-border px-6 py-3 text-sm font-medium text-foreground hover:bg-muted">
                     <ChevronLeft className="h-4 w-4" /> Previous
                   </button>
-                  <button onClick={() => goTo(5)} className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground shadow-md">
+                  <button onClick={() => void saveStep4()} className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground shadow-md">
                     Proceed to Payment <ChevronRight className="h-4 w-4" />
                   </button>
                 </div>
@@ -664,10 +1327,12 @@ const RegisterProject = () => {
                       <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
                         <CreditCard className="h-8 w-8 text-primary" />
                       </div>
-                      <h3 className="text-lg font-bold text-foreground">Pay ₹{(formData.deductTds === "Yes" ? totalAmount - registrationFee * 0.1 : totalAmount).toLocaleString()}</h3>
+                      <h3 className="text-lg font-bold text-foreground">
+                        Pay ₹{totalPayable.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </h3>
                       <p className="text-sm text-muted-foreground">You'll be redirected to our secure payment gateway</p>
                       <button
-                        onClick={() => setSubmitted(true)}
+                        onClick={() => void submitPaymentAndRegistration("online")}
                         className="mt-2 rounded-xl bg-primary px-10 py-3.5 text-sm font-semibold text-primary-foreground shadow-premium transition-all hover:shadow-lg"
                       >
                         Pay Now
@@ -682,7 +1347,11 @@ const RegisterProject = () => {
                     <div className="mt-5 space-y-4">
                       <div>
                         <label className="mb-1.5 block text-sm font-medium text-foreground">Payment Type</label>
-                        <select className="h-11 w-full rounded-lg border border-input bg-background px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20">
+                        <select
+                          value={formData.paymentType}
+                          onChange={(e) => update("paymentType", e.target.value)}
+                          className="h-11 w-full rounded-lg border border-input bg-background px-4 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        >
                           <option>Demand Draft</option>
                           <option>Cheque</option>
                           <option>NEFT/RTGS</option>
@@ -711,7 +1380,7 @@ const RegisterProject = () => {
                   </button>
                   {formData.paymentMethod === "offline" && (
                     <button
-                      onClick={() => setSubmitted(true)}
+                      onClick={() => void submitPaymentAndRegistration("offline")}
                       className="flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-sm font-semibold text-primary-foreground shadow-md"
                     >
                       Submit Payment Details
@@ -744,13 +1413,14 @@ const InputField = ({ label, value, onChange, placeholder, type = "text" }: {
 );
 
 /* Contact Card Component */
-const ContactCard = ({ title, prefix, formData, update, showSalutation, copyFrom }: {
+const ContactCard = ({ title, prefix, formData, update, showSalutation, copyFrom, requiredFields = true }: {
   title: string;
   prefix: string;
   formData: Record<string, string>;
   update: (field: string, value: string) => void;
   showSalutation?: boolean;
   copyFrom?: () => void;
+  requiredFields?: boolean;
 }) => (
   <div className="rounded-2xl bg-card p-6 shadow-card sm:p-8">
     <div className="flex items-center justify-between">
@@ -778,8 +1448,8 @@ const ContactCard = ({ title, prefix, formData, update, showSalutation, copyFrom
         </div>
       )}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <InputField label="First Name *" value={formData[`${prefix}FirstName`] || ""} onChange={(v) => update(`${prefix}FirstName`, v)} />
-        <InputField label="Last Name *" value={formData[`${prefix}LastName`] || ""} onChange={(v) => update(`${prefix}LastName`, v)} />
+        <InputField label={`First Name${requiredFields ? " *" : ""}`} value={formData[`${prefix}FirstName`] || ""} onChange={(v) => update(`${prefix}FirstName`, v)} />
+        <InputField label={`Last Name${requiredFields ? " *" : ""}`} value={formData[`${prefix}LastName`] || ""} onChange={(v) => update(`${prefix}LastName`, v)} />
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <InputField label="Organization" value={formData[`${prefix}Org`] || ""} onChange={(v) => update(`${prefix}Org`, v)} />
@@ -788,8 +1458,8 @@ const ContactCard = ({ title, prefix, formData, update, showSalutation, copyFrom
         )}
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <InputField label="Mobile *" value={formData[`${prefix}Mobile`] || ""} onChange={(v) => update(`${prefix}Mobile`, v)} placeholder="+91" />
-        <InputField label="Email *" value={formData[`${prefix}Email`] || ""} onChange={(v) => update(`${prefix}Email`, v)} placeholder="name@domain.com" />
+        <InputField label={`Mobile${requiredFields ? " *" : ""}`} value={formData[`${prefix}Mobile`] || ""} onChange={(v) => update(`${prefix}Mobile`, v)} placeholder="+91" />
+        <InputField label={`Email${requiredFields ? " *" : ""}`} value={formData[`${prefix}Email`] || ""} onChange={(v) => update(`${prefix}Email`, v)} placeholder="name@domain.com" />
       </div>
     </div>
   </div>

@@ -1,5 +1,6 @@
 import DataTable from "../components/DataTable";
 import TableRowActions from "../components/TableRowActions";
+import { Download, Plus } from "lucide-react";
 
 const coupons = [
   { name: "ALCBT-26-13", code: "IGBCAP-ALCBT-26-13", description: "IGBCAP-ALCBT-26-13 PARTICIPANTS COUPON CODE KOCHI", type: "Percentage", discount: 50.0, status: "Active" },
@@ -44,8 +45,8 @@ const CouponsPage = () => {
       <div className="flex items-center justify-between">
         <p className="text-sm text-primary font-semibold">Manage Coupons</p>
         <div className="flex gap-2">
-          <button className="action-btn action-btn-success">+ Add</button>
-          <button className="action-btn action-btn-outline">Export</button>
+          <button className="action-btn action-btn-success"><Plus className="w-3.5 h-3.5" /> Add</button>
+          <button className="action-btn action-btn-outline"><Download className="w-3.5 h-3.5" /> Export</button>
         </div>
       </div>
       <DataTable columns={columns} data={coupons} title="Coupons" />

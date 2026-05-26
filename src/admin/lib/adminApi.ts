@@ -150,6 +150,74 @@ export type AdminSupportItem = {
   updatedAt?: string;
 };
 
+export type AdminCertificationApplicationTab = "submitted" | "approved" | "rejected";
+
+export type AdminCertificationApplicationItem = {
+  certificationApplication: Record<string, unknown> & {
+    id?: number | string;
+    certificationApplicationId?: number | string;
+    projectId?: number | string;
+    igbcProjectId?: string | number;
+    status?: string;
+    paymentStatus?: string;
+    certificationFee?: number;
+    finalPayableAmount?: number;
+    paymentMethod?: string;
+    paymentType?: string;
+    transactionReference?: string;
+    ifscCode?: string;
+    bankName?: string;
+    branch?: string;
+    amount?: number;
+    paymentAmount?: number;
+    paymentDate?: string;
+    remarks?: string;
+    paymentRemarks?: string;
+  };
+  project: Record<string, unknown> & {
+    id?: number | string;
+    projectName?: string;
+    category?: string;
+    ratingSystem?: string;
+    subRatingType?: string;
+    projectType?: string;
+    constructionType?: string;
+    status?: string;
+    paymentStatus?: string;
+    certificateAppliedStatus?: string | boolean;
+    igbcProjectId?: string | number;
+    igbcprojectid?: string | number;
+    temporaryProjectId?: string;
+  };
+};
+
+export type AdminCertificationApplicationListResponse = {
+  counts: {
+    submitted: number;
+    approved: number;
+    rejected: number;
+  };
+  tab: AdminCertificationApplicationTab;
+  total: number;
+  items: AdminCertificationApplicationItem[];
+};
+
+export async function getAdminCertificationApplicationList(tab: AdminCertificationApplicationTab) {
+  const query = new URLSearchParams();
+  query.set("tab", tab);
+  return request<AdminCertificationApplicationListResponse>(
+    `/certification-application/admin/list?${query.toString()}`,
+  );
+}
+
+export async function getAdminCertificationApplicationTab(
+  tab: AdminCertificationApplicationTab,
+) {
+  return request<AdminCertificationApplicationListResponse>(
+    `/certification-application/admin/tabs/${tab}`,
+  );
+}
+
 export async function getAdminApExamList(params: { page?: number; limit?: number; search?: string }) {
   const query = new URLSearchParams();
   if (params.page) query.set("page", String(params.page));

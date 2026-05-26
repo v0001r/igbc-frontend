@@ -1,26 +1,19 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Building2, MapPin, Calendar, Plus, Search, Eye, FileText, CheckCircle2, Clock,
-  AlertTriangle, Award, ChevronRight, ChevronLeft, X, Check, CreditCard, Users,
-  Filter, Download, Mail, RefreshCw, ArrowUpDown
+  AlertTriangle, Award, ChevronRight, ChevronLeft, Users, X,
+  Filter, Download, Mail, RefreshCw, RotateCcw, ArrowUpDown
 } from "lucide-react";
-
-const projects = [
-  { id: "IGBCGFB260001", name: "CII GBC New Test 2", category: "Industrial", ratingSystem: "IGBC Green Factory Buildings", constructionType: "New / Upcoming", city: "Hyderabad", owner: "Rishav Kumar", ownerMobile: "9424858879", ownerEmail: "rishav.kumar@cii.in", ownerOrg: "CII IGBC", paymentMode: "offline", status: "pending", area: "1,00,000 sq ft", submitted: "Mar 2026", invoiceNo: "PI-20260301" },
-  { id: "IGBCGI260002", name: "SBI GHAZIPUR DAIRY FARM BRANCH NEW DELHI", category: "Commercial", ratingSystem: "IGBC Green Interiors", constructionType: "Existing", city: "New Delhi", owner: "NAVIN KUMAR", ownerMobile: "9430966364", ownerEmail: "agmpre.lhodel@sbi.co.in", ownerOrg: "STATE BANK OF INDIA", paymentMode: "offline", status: "pending", area: "65,000 sq ft", submitted: "Feb 2026", invoiceNo: "PI-20260215" },
-  { id: "IGBCGH260003", name: "Conscient 4, Residential Development at Sector-106, Gurugram", category: "Residential", ratingSystem: "IGBC Green Homes", constructionType: "New / Upcoming", city: "Gurugram", owner: "Sanjay Rastogi", ownerMobile: "9810030139", ownerEmail: "sanjay.rastogi@conscient.in", ownerOrg: "Prime Infradevelopers Pvt. Ltd.", paymentMode: "offline", status: "pending", area: "3,50,000 sq ft", submitted: "Jan 2026", invoiceNo: "PI-20260110" },
-  { id: "IGBCGNB260004", name: "Green Heights Commercial", category: "Commercial", ratingSystem: "IGBC Green New Buildings", constructionType: "New / Upcoming", city: "Mumbai", owner: "Rajesh Sharma", ownerMobile: "9876543210", ownerEmail: "rajesh@greenheights.com", ownerOrg: "GreenHeights Corp", paymentMode: "online", status: "approved", area: "1,20,000 sq ft", submitted: "Dec 2025", invoiceNo: "PI-20251201" },
-  { id: "IGBCGH260005", name: "Sunrise Residences Phase 2", category: "Residential", ratingSystem: "IGBC Green Homes", constructionType: "New / Upcoming", city: "Bangalore", owner: "Priya Mehta", ownerMobile: "9988776655", ownerEmail: "priya@sunrise.in", ownerOrg: "Sunrise Developers", paymentMode: "online", status: "approved", area: "85,000 sq ft", submitted: "Nov 2025", invoiceNo: "PI-20251115" },
-  { id: "IGBCGEB260006", name: "Heritage Green Campus", category: "Education", ratingSystem: "IGBC Green Existing Buildings", constructionType: "Existing", city: "Delhi", owner: "Dr. Sunita Rao", ownerMobile: "9112233445", ownerEmail: "sunita@heritagecampus.edu", ownerOrg: "Heritage Foundation", paymentMode: "offline", status: "in-review", area: "3,50,000 sq ft", submitted: "Oct 2025", invoiceNo: "PI-20251005" },
-];
-
+import { getMyProjectsList, getProjectResume, type MyProjectListItem } from "@/lib/projectRegistration";
+import { useToast } from "@/hooks/use-toast";
 const statusConfig: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
   approved: { label: "Approved", color: "bg-primary-muted text-primary", icon: CheckCircle2 },
-  "in-review": { label: "In Review", color: "bg-ocean/10 text-ocean", icon: Clock },
-  pending: { label: "Pending", color: "bg-peach/20 text-peach-foreground", icon: AlertTriangle },
+  submitted: { label: "Submitted", color: "bg-ocean/10 text-ocean", icon: Clock },
+  saved: { label: "Saved", color: "bg-peach/20 text-peach-foreground", icon: AlertTriangle },
+  rejected: { label: "Rejected", color: "bg-destructive/10 text-destructive", icon: AlertTriangle },
 };
 
 const tabs = [
@@ -32,12 +25,18 @@ const tabs = [
 
 const Projects = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("submitted");
+  const [statusFilter, setStatusFilter] = useState("saved");
+  const [counts, setCounts] = useState({ saved: 0, submitted: 0, approved: 0, rejected: 0 });
+  const [projects, setProjects] = useState<MyProjectListItem[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [perPage, setPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortCol, setSortCol] = useState("");
+  const [resumingProjectId, setResumingProjectId] = useState<number | null>(null);
 
   // Filter fields
   const [filterProjectId, setFilterProjectId] = useState("");
@@ -49,23 +48,46 @@ const Projects = () => {
   const [filterRatingSystem, setFilterRatingSystem] = useState("All");
   const [filterTxnId, setFilterTxnId] = useState("");
 
-  // Cert modal state
-  const [certProject, setCertProject] = useState<typeof projects[0] | null>(null);
-  const [certStep, setCertStep] = useState(1);
-  const [certType, setCertType] = useState("");
-  const [expedite, setExpedite] = useState(false);
+  useEffect(() => {
+    const tabFromUrl = searchParams.get("tab");
+    if (tabFromUrl === "saved" || tabFromUrl === "submitted" || tabFromUrl === "approved" || tabFromUrl === "rejected") {
+      setStatusFilter(tabFromUrl);
+    }
+  }, [searchParams]);
 
-  const filtered = projects.filter((p) => {
-    if (statusFilter === "approved" && p.status !== "approved") return false;
-    if (statusFilter === "submitted" && p.status === "approved") return false;
+  useEffect(() => {
+    const loadProjects = async () => {
+      setLoadingProjects(true);
+      try {
+        const response = await getMyProjectsList(statusFilter as "saved" | "submitted" | "approved" | "rejected");
+        setCounts(response.counts);
+        setProjects(response.items ?? []);
+      } catch (error) {
+        toast({
+          title: "Unable to load projects",
+          description: error instanceof Error ? error.message : "Please retry.",
+          variant: "destructive",
+        });
+        setProjects([]);
+      } finally {
+        setLoadingProjects(false);
+      }
+    };
+    void loadProjects();
+  }, [statusFilter, toast]);
+
+  const filtered = useMemo(() => projects.filter((p) => {
     const s = search.toLowerCase();
-    if (s && !p.name.toLowerCase().includes(s) && !p.id.toLowerCase().includes(s) && !p.owner.toLowerCase().includes(s)) return false;
-    if (filterProjectId && !p.id.toLowerCase().includes(filterProjectId.toLowerCase())) return false;
-    if (filterProjectName && !p.name.toLowerCase().includes(filterProjectName.toLowerCase())) return false;
-    if (filterOwnerName && !p.owner.toLowerCase().includes(filterOwnerName.toLowerCase())) return false;
+    const pid = String(p.temporaryProjectId ?? p.id ?? "").toLowerCase();
+    const pname = String(p.projectName ?? "").toLowerCase();
+    const rating = String(p.ratingSystem ?? "").toLowerCase();
+    const location = `${p.city ?? ""} ${p.state ?? ""}`.toLowerCase();
+    if (s && !pname.includes(s) && !pid.includes(s) && !rating.includes(s) && !location.includes(s)) return false;
+    if (filterProjectId && !pid.includes(filterProjectId.toLowerCase())) return false;
+    if (filterProjectName && !pname.includes(filterProjectName.toLowerCase())) return false;
     if (filterRatingSystem !== "All" && p.ratingSystem !== filterRatingSystem) return false;
     return true;
-  });
+  }), [projects, search, filterProjectId, filterProjectName, filterRatingSystem]);
 
   const totalPages = Math.ceil(filtered.length / perPage);
   const paged = filtered.slice((currentPage - 1) * perPage, currentPage * perPage);
@@ -73,6 +95,41 @@ const Projects = () => {
   const resetFilters = () => {
     setFilterProjectId(""); setFilterInvoice(""); setFilterProjectName(""); setFilterOwnerName("");
     setFilterOwnerMobile(""); setFilterOwnerEmail(""); setFilterRatingSystem("All"); setFilterTxnId("");
+  };
+
+  const handleResumeProject = async (project: MyProjectListItem) => {
+    setResumingProjectId(project.id);
+    try {
+      const response = await getProjectResume(project.id);
+      const nextStep = response.nextStep;
+      const message = response.message ?? "Project draft loaded.";
+      const isComplete = nextStep === null;
+
+      toast({
+        title: isComplete ? "Project already completed" : "Resuming registration",
+        description: message,
+        ...(isComplete ? {} : { variant: "default" as const }),
+      });
+
+      if (isComplete) {
+        return;
+      }
+
+      const params = new URLSearchParams();
+      params.set("projectId", String(project.id));
+      if (typeof nextStep === "number") {
+        params.set("step", String(nextStep));
+      }
+      navigate(`/register-project?${params.toString()}`);
+    } catch (error) {
+      toast({
+        title: "Unable to resume registration",
+        description: error instanceof Error ? error.message : "Please retry.",
+        variant: "destructive",
+      });
+    } finally {
+      setResumingProjectId(null);
+    }
   };
 
   return (
@@ -92,11 +149,11 @@ const Projects = () => {
 
       {/* Stats */}
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[
-          { label: "Total Projects", value: projects.length, color: "text-foreground" },
-          { label: "Approved", value: projects.filter((p) => p.status === "approved").length, color: "text-primary" },
-          { label: "In Review", value: projects.filter((p) => p.status === "in-review").length, color: "text-ocean" },
-          { label: "Pending", value: projects.filter((p) => p.status === "pending").length, color: "text-peach-foreground" },
+          {[
+          { label: "Total Projects", value: counts.saved + counts.submitted + counts.approved + counts.rejected, color: "text-foreground" },
+          { label: "Approved", value: counts.approved, color: "text-primary" },
+          { label: "Submitted", value: counts.submitted, color: "text-ocean" },
+          { label: "Saved", value: counts.saved, color: "text-peach-foreground" },
         ].map((s) => (
           <div key={s.label} className="rounded-2xl bg-card p-4 text-center shadow-card">
             <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
@@ -111,7 +168,13 @@ const Projects = () => {
           {tabs.map((t) => (
             <button
               key={t.id}
-              onClick={() => { setStatusFilter(t.id); setCurrentPage(1); }}
+              onClick={() => {
+                setStatusFilter(t.id);
+                setCurrentPage(1);
+                const params = new URLSearchParams(searchParams);
+                params.set("tab", t.id);
+                setSearchParams(params);
+              }}
               className={`flex items-center gap-1.5 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
                 statusFilter === t.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
               }`}
@@ -217,12 +280,23 @@ const Projects = () => {
               <th className="px-4 py-3 text-left cursor-pointer hover:text-foreground">
                 <span className="flex items-center gap-1">Approval Status <ArrowUpDown className="h-3 w-3" /></span>
               </th>
+              {statusFilter === "approved" && (
+                <th className="px-4 py-3 text-left">Certificate Applied</th>
+              )}
               <th className="px-4 py-3 text-center">Action</th>
             </tr>
           </thead>
           <tbody>
             {paged.map((project, i) => {
-              const sc = statusConfig[project.status];
+              const sc = statusConfig[project.status ?? "saved"] ?? statusConfig.saved;
+              const canApplyCertification =
+                statusFilter === "approved" &&
+                (String(project.certificateAppliedStatus ?? "").toLowerCase() === "no" ||
+                  project.certificateAppliedStatus === false);
+              const displayListProjectId =
+                statusFilter === "approved"
+                  ? String(project.igbcprojectid ?? project.igbcProjectId ?? project.temporaryProjectId ?? `P00${project.id}`)
+                  : String(project.temporaryProjectId ?? `P00${project.id}`);
               return (
                 <motion.tr
                   key={project.id}
@@ -232,37 +306,98 @@ const Projects = () => {
                   className="border-b border-border/50 transition-colors hover:bg-muted/30"
                 >
                   <td className="px-4 py-4"><input type="checkbox" className="rounded border-input" /></td>
-                  <td className="px-4 py-4 font-mono text-xs text-muted-foreground">-</td>
+                  <td className="px-4 py-4 font-mono text-xs text-muted-foreground">{displayListProjectId}</td>
                   <td className="px-4 py-4">
-                    <p className="text-sm font-medium text-foreground">Project Name : {project.name}</p>
-                    <p className="text-xs text-muted-foreground">Rating System : {project.ratingSystem}</p>
+                    <p className="text-sm font-medium text-foreground">Project Name : {project.projectName ?? "-"}</p>
+                    <p className="text-xs text-muted-foreground">Rating System : {project.ratingSystem ?? "-"}</p>
                   </td>
                   <td className="px-4 py-4">
-                    <p className="text-sm font-medium text-foreground">Name:{project.owner}</p>
-                    <p className="text-xs text-muted-foreground">Mobile No:{project.ownerMobile}</p>
-                    <p className="text-xs text-muted-foreground">Email: {project.ownerEmail}</p>
-                    <p className="text-xs text-muted-foreground">Organisation: {project.ownerOrg}</p>
+                    <p className="text-sm font-medium text-foreground">City: {project.city ?? "-"}</p>
+                    <p className="text-xs text-muted-foreground">State: {project.state ?? "-"}</p>
+                    <p className="text-xs text-muted-foreground">Project Type: {project.projectType ?? "-"}</p>
+                    <p className="text-xs text-muted-foreground">Construction: {project.constructionType ?? "-"}</p>
                   </td>
-                  <td className="px-4 py-4 text-sm text-foreground">{project.paymentMode}</td>
+                  <td className="px-4 py-4 text-sm text-foreground">{project.paymentStatus ?? "-"}</td>
                   <td className="px-4 py-4">
                     <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${sc.color}`}>
                       {sc.label}
                     </span>
                   </td>
+                  {statusFilter === "approved" && (
+                    <td className="px-4 py-4 text-sm text-foreground">
+                      {String(project.certificateAppliedStatus ?? "").toLowerCase() === "yes" ||
+                      project.certificateAppliedStatus === true
+                        ? "Yes"
+                        : "No"}
+                    </td>
+                  )}
                   <td className="px-4 py-4 text-center">
-                    <button
-                      onClick={() => navigate(`/project/${project.id}`)}
-                      className="rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 transition"
-                    >
-                      View
-                    </button>
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="group relative inline-flex">
+                        <button
+                          onClick={() => navigate(`/project/${project.id}`)}
+                          className="rounded-lg border border-primary bg-transparent p-2.5 text-primary transition hover:bg-primary-muted"
+                          aria-label="View project"
+                          title="View"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-[10px] font-medium text-background opacity-0 shadow-sm transition-opacity group-hover:opacity-100">
+                          View
+                        </span>
+                      </div>
+                      {statusFilter === "saved" && (
+                        <div className="group relative inline-flex">
+                          <button
+                            onClick={() => void handleResumeProject(project)}
+                            disabled={resumingProjectId === project.id}
+                            className="rounded-lg border border-primary p-2.5 text-primary transition hover:bg-primary-muted disabled:cursor-not-allowed disabled:opacity-60"
+                            aria-label="Resume project"
+                            title="Resume"
+                          >
+                            {resumingProjectId === project.id ? (
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <RotateCcw className="h-4 w-4" />
+                            )}
+                          </button>
+                          <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-[10px] font-medium text-background opacity-0 shadow-sm transition-opacity group-hover:opacity-100">
+                            Resume
+                          </span>
+                        </div>
+                      )}
+                      {canApplyCertification && (
+                        <div className="group relative inline-flex">
+                          <button
+                            onClick={() => {
+                              navigate(`/projects/apply-certification/${project.id}`, {
+                                state: { project },
+                              });
+                            }}
+                            className="rounded-lg border border-primary bg-transparent p-2.5 text-primary transition hover:bg-primary-muted"
+                            aria-label="Apply for certification"
+                            title="Apply for certification"
+                          >
+                            <Award className="h-4 w-4" />
+                          </button>
+                          <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-[10px] font-medium text-background opacity-0 shadow-sm transition-opacity group-hover:opacity-100">
+                            Apply for certification
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </motion.tr>
               );
             })}
-            {paged.length === 0 && (
+            {!loadingProjects && paged.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center text-sm text-muted-foreground">No projects found matching your criteria.</td>
+                <td colSpan={statusFilter === "approved" ? 8 : 7} className="px-4 py-12 text-center text-sm text-muted-foreground">No projects found matching your criteria.</td>
+              </tr>
+            )}
+            {loadingProjects && (
+              <tr>
+                <td colSpan={statusFilter === "approved" ? 8 : 7} className="px-4 py-12 text-center text-sm text-muted-foreground">Loading projects...</td>
               </tr>
             )}
           </tbody>
@@ -271,7 +406,7 @@ const Projects = () => {
 
       {/* Pagination */}
       <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-        <p>Showing {((currentPage - 1) * perPage) + 1}–{Math.min(currentPage * perPage, filtered.length)} of {filtered.length} projects</p>
+        <p>Showing {filtered.length === 0 ? 0 : ((currentPage - 1) * perPage) + 1}–{Math.min(currentPage * perPage, filtered.length)} of {filtered.length} projects</p>
         <div className="flex gap-1">
           <button onClick={() => setCurrentPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1} className="rounded-lg border border-border px-3 py-2 text-xs hover:bg-muted disabled:opacity-40">
             <ChevronLeft className="h-3 w-3" />
@@ -291,78 +426,6 @@ const Projects = () => {
         </div>
       </div>
 
-      {/* Certification Modal (kept from original) */}
-      <AnimatePresence>
-        {certProject && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-sm" onClick={() => setCertProject(null)}>
-            <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }} onClick={(e) => e.stopPropagation()} className="max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-card p-6 shadow-premium sm:p-8">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-foreground">Apply for Certification</h2>
-                <button onClick={() => setCertProject(null)} className="rounded-lg p-2 hover:bg-muted"><X className="h-4 w-4" /></button>
-              </div>
-              <div className="mt-4 rounded-xl bg-ghost p-4">
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div><span className="text-muted-foreground">Project:</span> <span className="font-medium text-foreground">{certProject.name}</span></div>
-                  <div><span className="text-muted-foreground">ID:</span> <span className="font-mono font-medium text-foreground">{certProject.id}</span></div>
-                </div>
-              </div>
-              {certStep === 1 && (
-                <div className="mt-6 space-y-5">
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground">Certification Type</h3>
-                    <div className="mt-3 flex gap-3">
-                      {["Pre-Certification", "Certification"].map((t) => (
-                        <button key={t} onClick={() => setCertType(t)} className={`flex-1 rounded-xl border-2 p-4 text-left transition-all ${certType === t ? "border-primary bg-primary-muted" : "border-border hover:border-primary/30"}`}>
-                          <p className="text-sm font-semibold text-foreground">{t}</p>
-                          <p className="mt-0.5 text-xs text-muted-foreground">{t === "Pre-Certification" ? "Preliminary review at design stage" : "Full certification after construction"}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between rounded-xl border border-border p-4">
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">Expedite Review</p>
-                      <p className="text-xs text-muted-foreground">Fast-track processing</p>
-                    </div>
-                    <button onClick={() => setExpedite(!expedite)} className={`relative h-6 w-11 rounded-full transition-colors ${expedite ? "bg-primary" : "bg-muted"}`}>
-                      <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-card shadow transition-transform ${expedite ? "translate-x-5" : ""}`} />
-                    </button>
-                  </div>
-                  <div className="flex justify-end gap-3">
-                    <button onClick={() => setCertProject(null)} className="rounded-xl border border-border px-5 py-2.5 text-sm font-medium text-foreground hover:bg-muted">Cancel</button>
-                    <button onClick={() => setCertStep(2)} disabled={!certType} className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-40">Continue</button>
-                  </div>
-                </div>
-              )}
-              {certStep === 2 && (
-                <div className="mt-6 space-y-5">
-                  <div className="rounded-xl border border-border p-4">
-                    <h3 className="text-sm font-semibold text-foreground">Fee Summary</h3>
-                    <div className="mt-3 space-y-2 text-sm">
-                      <div className="flex justify-between"><span className="text-muted-foreground">{certType} Fee</span><span className="font-mono font-semibold">₹2,36,000</span></div>
-                      {expedite && <div className="flex justify-between"><span className="text-muted-foreground">Expedite Charges</span><span className="font-mono font-semibold">₹50,000</span></div>}
-                      <div className="flex justify-between"><span className="text-muted-foreground">GST (18%)</span><span className="font-mono font-semibold">₹{expedite ? "51,480" : "42,480"}</span></div>
-                      <div className="flex justify-between border-t border-border pt-2 font-semibold"><span>Total</span><span className="font-mono text-primary">₹{expedite ? "3,37,480" : "2,78,480"}</span></div>
-                    </div>
-                  </div>
-                  <div className="flex justify-between">
-                    <button onClick={() => setCertStep(1)} className="flex items-center gap-1 rounded-xl border border-border px-5 py-2.5 text-sm font-medium text-foreground hover:bg-muted"><ChevronLeft className="h-3 w-3" /> Back</button>
-                    <button onClick={() => setCertStep(3)} className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground"><CreditCard className="h-4 w-4" /> Proceed to Pay</button>
-                  </div>
-                </div>
-              )}
-              {certStep === 3 && (
-                <div className="mt-6 text-center">
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10"><Check className="h-8 w-8 text-primary" /></div>
-                  <h3 className="mt-4 text-lg font-bold text-foreground">Application Submitted!</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">Your {certType} application for <strong>{certProject.name}</strong> has been submitted.</p>
-                  <button onClick={() => setCertProject(null)} className="mt-5 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground">Done</button>
-                </div>
-              )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </DashboardLayout>
   );
 };
