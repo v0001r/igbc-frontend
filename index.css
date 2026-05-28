@@ -16,10 +16,11 @@
     --popover-foreground: 220 25% 10%;
 
     --primary: 142 64% 34%;
+    --primary-hover: 142 49% 40%;
     --primary-foreground: 0 0% 100%;
 
-    --primary-muted: 142 40% 95%;
-    --primary-muted-foreground: 142 64% 22%;
+    --primary-muted: 142 40% 94%;
+    --primary-muted-foreground: 142 64% 28%;
 
     --secondary: 210 20% 96%;
     --secondary-foreground: 220 25% 10%;
@@ -30,7 +31,8 @@
     --accent: 24 95% 53%;
     --accent-foreground: 0 0% 100%;
 
-    --ocean: 217 71% 53%;
+    --ocean: 142 64% 34%;
+    --ocean-hover: 142 49% 40%;
     --ocean-foreground: 0 0% 100%;
 
     --sage: 142 30% 64%;
@@ -59,19 +61,19 @@
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
-    --info: 217 91% 60%;
+    --info: 142 64% 34%;
     --info-foreground: 0 0% 100%;
 
     --shadow-card: 0 1px 3px 0 rgba(0,0,0,.04), 0 1px 2px -1px rgba(0,0,0,.04);
     --shadow-card-hover: 0 4px 12px -2px rgba(0,0,0,.08), 0 2px 6px -2px rgba(0,0,0,.04);
-    --shadow-premium: 0 8px 30px -8px rgba(22,163,74,0.12), 0 0 0 1px rgba(22,163,74,0.04);
+    --shadow-premium: 0 8px 30px -8px rgba(31, 142, 72, 0.12), 0 0 0 1px rgba(31, 142, 72, 0.04);
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 220 25% 10%;
     --sidebar-primary: 142 64% 34%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 142 40% 95%;
-    --sidebar-accent-foreground: 142 64% 22%;
+    --sidebar-accent: 142 40% 94%;
+    --sidebar-accent-foreground: 142 64% 28%;
     --sidebar-border: 214 20% 91%;
     --sidebar-ring: 142 64% 34%;
   }

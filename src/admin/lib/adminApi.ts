@@ -425,3 +425,55 @@ export async function deleteAdminSupport(id: string) {
     method: "DELETE",
   });
 }
+
+export type AdminProjectItem = {
+  id: string;
+  projectCode: string;
+  projectName: string;
+  category?: string;
+  constructionType?: string;
+  city?: string;
+  ownerName?: string;
+  ownerMobile?: string;
+  ownerEmail?: string;
+  ownerOrg?: string;
+  paymentMode: string;
+  registrationStatus: string;
+  certificationStatus: string;
+  ratingTypeName: string;
+  hasConfig: boolean;
+  createdAt: string;
+};
+
+export async function getAdminProjects(params?: {
+  registrationStatus?: string;
+  certificationStatus?: string;
+}) {
+  const query = new URLSearchParams();
+  if (params?.registrationStatus) query.set("registrationStatus", params.registrationStatus);
+  if (params?.certificationStatus) query.set("certificationStatus", params.certificationStatus);
+  const qs = query.toString();
+  return request<AdminProjectItem[]>(`/admin/projects${qs ? `?${qs}` : ""}`);
+}
+
+export async function getAdminProjectDetails(id: string) {
+  return request<AdminProjectItem>(`/admin/projects/${id}`);
+}
+
+export async function approveAdminProjectRegistration(id: string) {
+  return request<AdminProjectItem>(`/admin/projects/${id}/approve-registration`, {
+    method: "POST",
+  });
+}
+
+export async function rejectAdminProjectRegistration(id: string) {
+  return request<AdminProjectItem>(`/admin/projects/${id}/reject-registration`, {
+    method: "POST",
+  });
+}
+
+export async function approveAdminProjectCertification(id: string) {
+  return request<AdminProjectItem>(`/admin/projects/${id}/approve-certification`, {
+    method: "POST",
+  });
+}
