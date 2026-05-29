@@ -3,11 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { GreenHomesProjectWorkspace } from "@/components/greenHomes/GreenHomesProjectWorkspace";
 import { getProjectFullDetails, type ProjectFullDetailsResponse } from "@/lib/projectRegistration";
-import {
-  isCertificationWorkspaceUnlocked,
-  projectHasRatingConfig,
-} from "@/lib/ratingConfigRegistry";
-import { fetchProjectById, type ProjectDto } from "@/lib/projects";
+import { isRegistrationWorkspaceUnlocked } from "@/lib/ratingConfigRegistry";
 import { useToast } from "@/hooks/use-toast";
 
 const ProjectDetail = () => {
@@ -16,7 +12,6 @@ const ProjectDetail = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [project, setProject] = useState<ProjectFullDetailsResponse | null>(null);
-  const [workspaceProject, setWorkspaceProject] = useState<ProjectDto | null>(null);
 
   useEffect(() => {
     if (!id) {
@@ -27,23 +22,9 @@ const ProjectDetail = () => {
     const load = async () => {
       setLoading(true);
       setProject(null);
-      setWorkspaceProject(null);
       try {
-        const [detailsResult, workspaceResult] = await Promise.allSettled([
-          getProjectFullDetails(id),
-          fetchProjectById(id),
-        ]);
-
-        if (detailsResult.status === "fulfilled") {
-          setProject(detailsResult.value);
-        }
-        if (workspaceResult.status === "fulfilled") {
-          setWorkspaceProject(workspaceResult.value);
-        }
-
-        if (detailsResult.status === "rejected" && workspaceResult.status === "rejected") {
-          throw detailsResult.reason;
-        }
+        const details = await getProjectFullDetails(id);
+        setProject(details);
       } catch (error) {
         toast({
           title: "Unable to load project details",
@@ -89,12 +70,11 @@ const ProjectDetail = () => {
         ? String(project.temporaryProjectId)
         : "-";
 
-  if (
-    workspaceProject &&
-    isCertificationWorkspaceUnlocked(workspaceProject.certificationStatus) &&
-    projectHasRatingConfig(workspaceProject)
-  ) {
-    return <GreenHomesProjectWorkspace projectId={workspaceProject.id} />;
+  const hasCertificationConfig =
+    stepOne.hasCertificationConfig === true || stepOne.hasCertificationConfig === "true";
+
+  if (project && isRegistrationWorkspaceUnlocked(project) && hasCertificationConfig) {
+    return <GreenHomesProjectWorkspace projectId={String(id)} />;
   }
 
   return (
@@ -213,4 +193,3 @@ const ProjectDetail = () => {
 };
 
 export default ProjectDetail;
-

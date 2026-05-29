@@ -71,6 +71,10 @@ export type ProjectCategoryRatingSystem = {
   shortRatingName?: string;
   type?: string[];
   specifics?: string[];
+  configKey?: string | null;
+  versionTypes?: string[];
+  defaultVersion?: string | null;
+  hasCertificationConfig?: boolean;
   fees?: {
     annual?: number;
     founding?: number;
@@ -141,6 +145,7 @@ export type ProjectStepOnePayload = {
   temporaryProjectId?: string;
   category: number;
   ratingSystem: string;
+  ratingTypeId?: number;
   subRatingType?: string;
   projectType: string;
   constructionType: string;
