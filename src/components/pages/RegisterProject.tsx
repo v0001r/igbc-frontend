@@ -481,7 +481,7 @@ const RegisterProject = () => {
     const created = await createProjectStepOne({
       category: Number(formData.category),
       ratingSystem: selectedRatingLabel,
-      ratingTypeId: selectedRatingSystem?.id ?? Number(formData.ratingSystem) || undefined,
+      ratingTypeId: selectedRatingSystem?.id ?? (Number(formData.ratingSystem) || undefined),
       subRatingType: formData.ratingSpecific || undefined,
       projectType: formData.projectType,
       constructionType: formData.constructionType,
@@ -517,7 +517,7 @@ const RegisterProject = () => {
         temporaryProjectId: temporaryProjectId || undefined,
         category: Number(formData.category),
         ratingSystem: selectedRatingLabel,
-        ratingTypeId: selectedRatingSystem?.id ?? Number(formData.ratingSystem) || undefined,
+        ratingTypeId: selectedRatingSystem?.id ?? (Number(formData.ratingSystem) || undefined),
         subRatingType: formData.ratingSpecific || undefined,
         projectType: formData.projectType,
         constructionType: formData.constructionType,
