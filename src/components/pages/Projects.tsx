@@ -91,6 +91,8 @@ const Projects = () => {
 
   const totalPages = Math.ceil(filtered.length / perPage);
   const paged = filtered.slice((currentPage - 1) * perPage, currentPage * perPage);
+  const tableColSpan =
+    7 + (statusFilter === "approved" ? 1 : 0) + (statusFilter === "rejected" ? 1 : 0);
 
   const resetFilters = () => {
     setFilterProjectId(""); setFilterInvoice(""); setFilterProjectName(""); setFilterOwnerName("");
@@ -283,6 +285,9 @@ const Projects = () => {
               {statusFilter === "approved" && (
                 <th className="px-4 py-3 text-left">Certificate Applied</th>
               )}
+              {statusFilter === "rejected" && (
+                <th className="px-4 py-3 text-left">Rejection Reason</th>
+              )}
               <th className="px-4 py-3 text-center">Action</th>
             </tr>
           </thead>
@@ -293,8 +298,33 @@ const Projects = () => {
                 statusFilter === "approved" &&
                 (String(project.certificateAppliedStatus ?? "").toLowerCase() === "no" ||
                   project.certificateAppliedStatus === false);
+              const canReapplyCertification =
+                statusFilter === "rejected" && project.canReapplyCertification === true;
+              const certPaymentPending =
+                statusFilter === "approved" &&
+                String(project.certificationPaymentStatus ?? "").toLowerCase() === "pending";
+              const certPaymentApproved =
+                statusFilter === "approved" && project.isCertificationWorkspaceReady === true;
+              const rejectionRemark =
+                project.rejectionType === "certification"
+                  ? project.certificationRejectRemark
+                  : project.rejectRemark;
+              const approvalBadge =
+                statusFilter === "rejected"
+                  ? {
+                      label:
+                        project.rejectionType === "certification"
+                          ? "Certification rejected"
+                          : "Registration rejected",
+                      color: "bg-destructive/10 text-destructive",
+                    }
+                  : certPaymentPending
+                    ? { label: "Certification under review", color: "bg-ocean/10 text-ocean" }
+                    : certPaymentApproved
+                      ? { label: "Certification approved", color: "bg-primary-muted text-primary" }
+                      : { label: sc.label, color: sc.color };
               const displayListProjectId =
-                statusFilter === "approved"
+                statusFilter === "approved" || statusFilter === "rejected"
                   ? String(project.igbcprojectid ?? project.igbcProjectId ?? project.temporaryProjectId ?? `P00${project.id}`)
                   : String(project.temporaryProjectId ?? `P00${project.id}`);
               return (
@@ -319,8 +349,10 @@ const Projects = () => {
                   </td>
                   <td className="px-4 py-4 text-sm text-foreground">{project.paymentStatus ?? "-"}</td>
                   <td className="px-4 py-4">
-                    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${sc.color}`}>
-                      {sc.label}
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${approvalBadge.color}`}
+                    >
+                      {approvalBadge.label}
                     </span>
                   </td>
                   {statusFilter === "approved" && (
@@ -329,6 +361,11 @@ const Projects = () => {
                       project.certificateAppliedStatus === true
                         ? "Yes"
                         : "No"}
+                    </td>
+                  )}
+                  {statusFilter === "rejected" && (
+                    <td className="max-w-xs px-4 py-4 text-sm text-foreground">
+                      {rejectionRemark?.trim() ? rejectionRemark : "—"}
                     </td>
                   )}
                   <td className="px-4 py-4 text-center">
@@ -385,6 +422,25 @@ const Projects = () => {
                           </span>
                         </div>
                       )}
+                      {canReapplyCertification && (
+                        <div className="group relative inline-flex">
+                          <button
+                            onClick={() => {
+                              navigate(`/projects/apply-certification/${project.id}`, {
+                                state: { project, reapply: true },
+                              });
+                            }}
+                            className="rounded-lg border border-primary bg-transparent p-2.5 text-primary transition hover:bg-primary-muted"
+                            aria-label="Re-apply for certification"
+                            title="Re-apply for certification"
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </button>
+                          <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-[10px] font-medium text-background opacity-0 shadow-sm transition-opacity group-hover:opacity-100">
+                            Re-apply
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </td>
                 </motion.tr>
@@ -392,12 +448,12 @@ const Projects = () => {
             })}
             {!loadingProjects && paged.length === 0 && (
               <tr>
-                <td colSpan={statusFilter === "approved" ? 8 : 7} className="px-4 py-12 text-center text-sm text-muted-foreground">No projects found matching your criteria.</td>
+                <td colSpan={tableColSpan} className="px-4 py-12 text-center text-sm text-muted-foreground">No projects found matching your criteria.</td>
               </tr>
             )}
             {loadingProjects && (
               <tr>
-                <td colSpan={statusFilter === "approved" ? 8 : 7} className="px-4 py-12 text-center text-sm text-muted-foreground">Loading projects...</td>
+                <td colSpan={tableColSpan} className="px-4 py-12 text-center text-sm text-muted-foreground">Loading projects...</td>
               </tr>
             )}
           </tbody>

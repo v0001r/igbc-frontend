@@ -62,6 +62,37 @@ export function isRegistrationWorkspaceUnlocked(project: {
   return project.status === "approved" && paid;
 }
 
+export function isCertificationPaymentApproved(paymentStatus?: string | null): boolean {
+  const normalized = String(paymentStatus ?? "").toLowerCase();
+  return normalized === "paid" || normalized === "approved" || normalized === "success";
+}
+
+export function isCertificationWorkspaceReady(project: {
+  status?: string | null;
+  paymentStatus?: string | null;
+  isCertificationWorkspaceReady?: boolean;
+  certificationApplication?: {
+    status?: string | null;
+    paymentStatus?: string | null;
+  } | null;
+}): boolean {
+  if (project.isCertificationWorkspaceReady === true) {
+    return true;
+  }
+  if (!isRegistrationWorkspaceUnlocked(project)) {
+    return false;
+  }
+  const cert = project.certificationApplication;
+  if (!cert) {
+    return false;
+  }
+  const paymentApproved = isCertificationPaymentApproved(cert.paymentStatus);
+  if (!paymentApproved) {
+    return false;
+  }
+  return cert.status === "approved" || cert.status === "submitted";
+}
+
 export function registrationHasRatingConfig(ratingSystem: unknown): boolean {
   return resolveRegistrationRatingConfig(ratingSystem) !== null;
 }

@@ -3,7 +3,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { GreenHomesProjectWorkspace } from "@/components/greenHomes/GreenHomesProjectWorkspace";
 import { getProjectFullDetails, type ProjectFullDetailsResponse } from "@/lib/projectRegistration";
-import { isRegistrationWorkspaceUnlocked } from "@/lib/ratingConfigRegistry";
+import {
+  isCertificationWorkspaceReady,
+  isRegistrationWorkspaceUnlocked,
+} from "@/lib/ratingConfigRegistry";
 import { useToast } from "@/hooks/use-toast";
 
 const ProjectDetail = () => {
@@ -73,7 +76,13 @@ const ProjectDetail = () => {
   const hasCertificationConfig =
     stepOne.hasCertificationConfig === true || stepOne.hasCertificationConfig === "true";
 
-  if (project && isRegistrationWorkspaceUnlocked(project) && hasCertificationConfig) {
+  const cert = project?.certificationApplication;
+  const certPaymentStatus = String(cert?.paymentStatus ?? "").toLowerCase();
+  const registrationUnlocked = project ? isRegistrationWorkspaceUnlocked(project) : false;
+  const workspaceReady =
+    project && hasCertificationConfig && isCertificationWorkspaceReady(project);
+
+  if (workspaceReady && id) {
     return <GreenHomesProjectWorkspace projectId={String(id)} />;
   }
 
@@ -98,6 +107,55 @@ const ProjectDetail = () => {
 
         {!loading && project && (
           <div className="space-y-4">
+            {registrationUnlocked && certPaymentStatus === "rejected" && (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+                <p className="text-sm font-semibold text-destructive">Apply Certification Rejected</p>
+                <p className="mt-2 text-sm text-foreground">
+                  {cert?.paymentRemarks?.trim()
+                    ? cert.paymentRemarks
+                    : "No rejection reason was provided."}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/projects/apply-certification/${project.projectId}`, { state: { reapply: true } })}
+                  className="mt-3 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+                >
+                  Re-apply for certification
+                </button>
+              </div>
+            )}
+            {registrationUnlocked &&
+              certPaymentStatus === "pending" &&
+              String(project.certificateAppliedStatus ?? "").toLowerCase() === "yes" && (
+                <div className="rounded-xl border border-ocean/30 bg-ocean/5 p-4 text-sm text-foreground">
+                  Your certification application has been submitted and is under admin review.
+                </div>
+              )}
+            {registrationUnlocked &&
+              hasCertificationConfig &&
+              !cert &&
+              String(project.certificateAppliedStatus ?? "").toLowerCase() !== "yes" && (
+                <div className="rounded-xl border border-primary/30 bg-primary/5 p-4">
+                  <p className="text-sm text-foreground">
+                    Registration is approved. Apply for certification to begin the certification process.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(`/projects/apply-certification/${project.projectId}`)
+                    }
+                    className="mt-3 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+                  >
+                    Apply for certification
+                  </button>
+                </div>
+              )}
+            {project.rejectRemark && String(project.status).toLowerCase() === "rejected" && (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+                <p className="text-sm font-semibold text-destructive">Registration rejected</p>
+                <p className="mt-2 text-sm text-foreground">{project.rejectRemark}</p>
+              </div>
+            )}
             <section className="rounded-xl border bg-card p-4">
               <h2 className="mb-3 text-base font-semibold text-foreground">Project Overview</h2>
               <div className="grid gap-2 text-sm sm:grid-cols-2">

@@ -13,13 +13,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new Error("Unauthorized. Please login again.");
   }
 
+  const headers = new Headers(init?.headers);
+  headers.set("Accept", "application/json");
+  const auth = authHeaders() as Record<string, string>;
+  if (auth.Authorization) {
+    headers.set("Authorization", auth.Authorization);
+  }
+  if (init?.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
   const response = await fetch(`${API_URL}${path}`, {
+    ...init,
     method: init?.method ?? "GET",
-    headers: {
-      ...authHeaders(),
-      Accept: "application/json",
-      ...(init?.headers ?? {}),
-    },
+    headers,
     body: init?.body,
   });
 
@@ -216,6 +223,56 @@ export async function getAdminCertificationApplicationTab(
   return request<AdminCertificationApplicationListResponse>(
     `/certification-application/admin/tabs/${tab}`,
   );
+}
+
+export type AdminCertificationApplicationViewResponse = {
+  certificationApplicationId: number;
+  projectId: number;
+  igbcProjectId?: string | null;
+  temporaryProjectId?: string | null;
+  canApproveOrReject: boolean;
+  certificationApplication: Record<string, unknown>;
+  project: Record<string, unknown>;
+  projectDetails: Record<string, unknown>;
+  contacts: Record<string, unknown> | null;
+  owner: { name?: string; email?: string; mobile?: string | null } | null;
+  registrationPayment: Record<string, unknown> | null;
+  registrationInvoice: Record<string, unknown> | null;
+};
+
+export async function getAdminCertificationApplicationView(applicationId: string | number) {
+  return request<AdminCertificationApplicationViewResponse>(
+    `/certification-application/admin/application/${applicationId}/view`,
+  );
+}
+
+export async function approveAdminCertificationApplication(applicationId: string | number) {
+  return request<{
+    certificationApplicationId: number;
+    projectId: number;
+    status: string;
+    paymentStatus: string;
+    message: string;
+  }>(`/certification-application/admin/application/${applicationId}/approve`, {
+    method: "PATCH",
+  });
+}
+
+export async function rejectAdminCertificationApplication(
+  applicationId: string | number,
+  remark: string,
+) {
+  return request<{
+    certificationApplicationId: number;
+    projectId: number;
+    status: string;
+    paymentStatus: string;
+    rejectRemark: string | null;
+    message: string;
+  }>(`/certification-application/admin/application/${applicationId}/reject`, {
+    method: "PATCH",
+    body: JSON.stringify({ remark }),
+  });
 }
 
 export async function getAdminApExamList(params: { page?: number; limit?: number; search?: string }) {

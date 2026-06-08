@@ -23,10 +23,7 @@ const ProjectCertificationPage = () => {
   const [filterCertificateType, setFilterCertificateType] = useState("All");
   const [filterExpediteReview, setFilterExpediteReview] = useState("All");
   const [filterStatus, setFilterStatus] = useState("All");
-
-  if (viewCert) {
-    return <ProjectCertificationView onBack={() => setViewCert(null)} />;
-  }
+  const [listRefreshKey, setListRefreshKey] = useState(0);
 
   const tabs: Array<{
     id: AdminCertificationApplicationTab;
@@ -121,7 +118,7 @@ const ProjectCertificationPage = () => {
     };
 
     void loadCertifications();
-  }, [activeTab, toast]);
+  }, [activeTab, toast, listRefreshKey]);
 
   const columns = useMemo(() => [
     { key: "projectId", label: "Project ID", sortable: true },
@@ -211,6 +208,16 @@ const ProjectCertificationPage = () => {
     setFilterExpediteReview("All");
     setFilterStatus("All");
   };
+
+  if (viewCert) {
+    return (
+      <ProjectCertificationView
+        applicationId={viewCert}
+        onBack={() => setViewCert(null)}
+        onReviewComplete={() => setListRefreshKey((key) => key + 1)}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">

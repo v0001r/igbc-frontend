@@ -233,6 +233,17 @@ export type ProjectResumeStepFive = {
   remarks?: string;
 };
 
+export type ProjectCertificationApplicationSummary = {
+  id: number;
+  status: string;
+  paymentStatus: string;
+  paymentRemarks?: string | null;
+  currentStep?: number;
+  certificationType?: number | null;
+  certificationFee?: number;
+  finalPayableAmount?: number;
+};
+
 export type ProjectFullDetailsResponse = {
   projectId: number;
   igbcProjectId?: string | number;
@@ -243,6 +254,11 @@ export type ProjectFullDetailsResponse = {
   currentStep?: number;
   registrationFee?: number;
   finalPayableAmount?: number;
+  rejectRemark?: string | null;
+  certificateAppliedStatus?: string | boolean;
+  certificationApplication?: ProjectCertificationApplicationSummary | null;
+  canReapplyCertification?: boolean;
+  isCertificationWorkspaceReady?: boolean;
   stepOne?: Record<string, unknown> | null;
   stepTwo?: Record<string, unknown> | null;
   stepThree?: Record<string, unknown> | null;
@@ -270,6 +286,14 @@ export type CertificationApplicationStepOnePrefillResponse = {
   igbcProjectId?: string | number;
   temporaryProjectId?: string;
   certificationApplicationStatus?: string | boolean;
+  certificationApplicationId?: number | null;
+  certificationStatus?: string | null;
+  certificationPaymentStatus?: string | null;
+  certificationRejectRemark?: string | null;
+  certificationCurrentStep?: number | null;
+  certificationType?: number | null;
+  canReapplyCertification?: boolean;
+  isCertificationWorkspaceReady?: boolean;
   status?: string;
   paymentStatus?: string;
   category?: number | string;
@@ -373,6 +397,14 @@ export type MyProjectListItem = {
   projectName?: string;
   city?: string;
   state?: string;
+  rejectRemark?: string | null;
+  certificationApplicationId?: number | null;
+  certificationStatus?: string | null;
+  certificationPaymentStatus?: string | null;
+  certificationRejectRemark?: string | null;
+  canReapplyCertification?: boolean;
+  isCertificationWorkspaceReady?: boolean;
+  rejectionType?: "certification" | "registration" | null;
   createdAt?: string;
   updatedAt?: string;
 };

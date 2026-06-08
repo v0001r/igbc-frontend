@@ -60,6 +60,10 @@ const ApplyCertification = () => {
   const [submittingStepThree, setSubmittingStepThree] = useState(false);
   const [feeSummary, setFeeSummary] = useState<FeeSummary | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [certificationRejectRemark, setCertificationRejectRemark] = useState<string | null>(null);
+  const [isReapply, setIsReapply] = useState(
+    Boolean((location.state as { reapply?: boolean } | null)?.reapply),
+  );
   const [invoiceForm, setInvoiceForm] = useState({
     invoiceOrg: "",
     invoiceAddress: "",
@@ -181,6 +185,28 @@ const ApplyCertification = () => {
           setExpediteChoice("yes");
         } else if (expediteReviewValue === false) {
           setExpediteChoice("no");
+        }
+
+        const certPaymentStatus = String(
+          pickFirst(payload, ["certificationPaymentStatus"]) ?? "",
+        ).toLowerCase();
+        const rejectRemark = pickFirst(payload, ["certificationRejectRemark"]);
+        setCertificationRejectRemark(
+          typeof rejectRemark === "string" && rejectRemark.trim().length > 0
+            ? rejectRemark
+            : null,
+        );
+        const canReapply = pickFirst(payload, ["canReapplyCertification"]) === true;
+        if (canReapply || certPaymentStatus === "rejected") {
+          setIsReapply(true);
+        }
+        const existingStep = Number(pickFirst(payload, ["certificationCurrentStep"]));
+        if (
+          (canReapply || certPaymentStatus === "rejected") &&
+          Number.isFinite(existingStep) &&
+          existingStep >= 2
+        ) {
+          setCertStep(Math.min(existingStep, 3));
         }
       } catch (error) {
         setProject(null);
@@ -500,6 +526,12 @@ const ApplyCertification = () => {
           : prev,
       );
       setSubmitted(true);
+      toast({
+        title: isReapply ? "Resubmitted for admin review" : "Application submitted",
+        description: isReapply
+          ? "Your certification payment details were resubmitted and are pending admin review."
+          : "Your certification application has been submitted successfully.",
+      });
     } catch (error) {
       toast({
         title: "Unable to submit payment",
@@ -519,8 +551,14 @@ const ApplyCertification = () => {
             <Award className="h-4.5 w-4.5 text-primary" strokeWidth={1.5} />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-foreground">Apply for Certification</h1>
-            <p className="text-[12px] text-muted-foreground">Submit your approved project for IGBC certification</p>
+            <h1 className="text-lg font-bold text-foreground">
+              {isReapply ? "Re-apply for Certification" : "Apply for Certification"}
+            </h1>
+            <p className="text-[12px] text-muted-foreground">
+              {isReapply
+                ? "Update and resubmit your certification application after rejection"
+                : "Submit your approved project for IGBC certification"}
+            </p>
           </div>
         </motion.div>
 
@@ -573,6 +611,12 @@ const ApplyCertification = () => {
 
           {!loading && project && (
             <>
+              {isReapply && certificationRejectRemark && (
+                <div className="mb-5 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+                  <p className="text-sm font-semibold text-destructive">Previous rejection reason</p>
+                  <p className="mt-2 text-sm text-foreground">{certificationRejectRemark}</p>
+                </div>
+              )}
               <div className="rounded-xl bg-ghost p-4">
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div><span className="text-muted-foreground">Project:</span> <span className="font-medium text-foreground">{project.projectName ?? "-"}</span></div>
@@ -854,8 +898,13 @@ const ApplyCertification = () => {
                         <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
                           <Check className="h-10 w-10 text-primary" />
                         </div>
-                        <h2 className="mt-4 text-2xl font-bold text-foreground">Application Submitted!</h2>
-                        <p className="mt-2 text-sm text-muted-foreground">Your {certType} application for <strong>{project.projectName ?? "-"}</strong> has been submitted.</p>
+                        <h2 className="mt-4 text-2xl font-bold text-foreground">
+                          {isReapply ? "Application Resubmitted!" : "Application Submitted!"}
+                        </h2>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          Your {certType} application for <strong>{project.projectName ?? "-"}</strong> has been{" "}
+                          {isReapply ? "resubmitted for admin review" : "submitted"}.
+                        </p>
                         <button onClick={() => navigate("/projects?tab=approved")} className="mt-5 rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground">Done</button>
                       </div>
                     )}
