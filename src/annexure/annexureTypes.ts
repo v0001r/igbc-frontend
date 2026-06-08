@@ -8,6 +8,17 @@ export type AnnexureRenderMode =
   | "dwelling"
   | "rainwater"
   | "waterEfficiency"
+  | "greenInteriorsWcTwo"
+  | "conditionedSpaces"
+  | "naturalVentilation"
+  | "lpdBuildingAreaMethod"
+  | "lpdSpaceFunctionMethod"
+  | "onsiteRenewableEnergy"
+  | "masterMaterial"
+  | "acFreshAir"
+  | "daylightNoise"
+  | "occupantWellbeing"
+  | "wasteManagement"
   | "waterBalance"
   | "wastewaterReuse"
   | "reference";
@@ -110,6 +121,8 @@ export type AnnexureRainfallSectionDef = {
 
 export type AnnexureRainwaterLayoutDef = {
   rainfall: AnnexureRainfallSectionDef;
+  hideCaseSelector?: boolean;
+  defaultCase?: string;
   caseOptions?: Record<string, string>;
   surfaceTable?: AnnexureTableDef;
   summary?: AnnexureSummaryRowDef[];
@@ -134,6 +147,167 @@ export type AnnexureWaterEfficiencyLayoutDef = {
   minDynamicRows?: number;
   maxDynamicRows?: number;
   presetRows: WaterEfficiencyPresetDef[];
+};
+
+export type GiWcTwoPresetDef = {
+  id: string;
+  fixtureType: string;
+  prefix: string;
+  occupantStatusParam: string;
+  unitTypeParam: string;
+  proposedUnitParam: string;
+  category: "flush" | "flow";
+  defaultFteKind: "division" | "total";
+  defaults: {
+    duration: string;
+    daily: string;
+    baseTopology1?: string;
+    baseDefault: string;
+    unit: string;
+    defaultOccupantStatus?: string;
+    readOnlyOccupantStatus?: boolean;
+  };
+};
+
+export type GiWcTwoLayoutDef = {
+  fteTabLabel?: string;
+  fixturesTabLabel?: string;
+  partTimeMinRows?: number;
+  partTimeMaxRows?: number;
+  presetRows: GiWcTwoPresetDef[];
+};
+
+export type ConditionedSpacesSourceAnnexDef = {
+  tab?: string;
+  subtab: string;
+  occupancyField: string;
+  occupancyValue: string;
+  acField: string;
+  acValue: string;
+  spaceNameField: string;
+  areaField: string;
+};
+
+export type ConditionedSpacesLayoutDef = {
+  systemsTabLabel?: string;
+  areaTabLabel?: string;
+  systemMinRows?: number;
+  systemMaxRows?: number;
+  sourceAnnex?: ConditionedSpacesSourceAnnexDef;
+  acSystemOptions?: Record<string, string>;
+  efficiencyUnitOptions?: Record<string, string>;
+  refrigerantOptions?: Record<string, string>;
+  scopeOptions?: Record<string, string>;
+};
+
+export type NaturalVentilationSourceAnnexDef = ConditionedSpacesSourceAnnexDef;
+
+export type NaturalVentilationLayoutDef = {
+  sourceAnnex?: NaturalVentilationSourceAnnexDef;
+  yesNoOptions?: Record<string, string>;
+};
+
+export type LpdBuildingAreaSourceAnnexDef = {
+  tab?: string;
+  subtab: string;
+  spaceNameField: string;
+  areaField: string;
+};
+
+export type LpdBuildingTypologyBaselineDef = {
+  slug: string;
+  label: string;
+  baseline: number;
+};
+
+export type LpdBuildingAreaLayoutDef = {
+  sourceAnnex?: LpdBuildingAreaSourceAnnexDef;
+  typologyBaselines?: LpdBuildingTypologyBaselineDef[];
+  typologyOptions?: Record<string, string>;
+};
+
+export type LpdSpaceFunctionSourceAnnexDef = LpdBuildingAreaSourceAnnexDef;
+
+export type LpdSpaceBaselineDef = LpdBuildingTypologyBaselineDef;
+
+export type LpdSpaceFunctionLayoutDef = {
+  minRows?: number;
+  maxRows?: number;
+  addRowLabel?: string;
+  sourceAnnex?: LpdSpaceFunctionSourceAnnexDef;
+  spaceBaselines?: LpdSpaceBaselineDef[];
+  spaceTypeOptions?: Record<string, string>;
+};
+
+export type OnsiteRenewableLayoutDef = {
+  minRows?: number;
+  maxRows?: number;
+  addRowLabel?: string;
+};
+
+export type MasterMaterialLayoutDef = {
+  minRows?: number;
+  maxRows?: number;
+  addRowLabel?: string;
+  localDistanceMaxKm?: number;
+  materialOptions?: Record<string, string>;
+  subCategories?: Record<string, string[]>;
+};
+
+export type AcFreshAirSpaceTypeDef = {
+  label: string;
+  baseline: number;
+  outdoor?: number | null;
+};
+
+export type AcFreshAirLayoutDef = {
+  systemsTabLabel?: string;
+  areaTabLabel?: string;
+  systemMinRows?: number;
+  systemMaxRows?: number;
+  sourceAnnex?: ConditionedSpacesSourceAnnexDef;
+  spaceTypeOptions?: Record<string, AcFreshAirSpaceTypeDef>;
+};
+
+export type DaylightSpaceTypeDef = {
+  label: string;
+  benchmarkLux: number;
+};
+
+export type AcousticSpaceTypeDef = {
+  label: string;
+  baselineDb: number;
+};
+
+export type DaylightNoiseLayoutDef = {
+  sourceAnnex?: Omit<ConditionedSpacesSourceAnnexDef, "acField" | "acValue"> & {
+    acField?: string;
+    acValue?: string;
+  };
+  daylightSpaceTypes?: Record<string, DaylightSpaceTypeDef>;
+  acousticSpaceTypes?: Record<string, AcousticSpaceTypeDef>;
+};
+
+export type OccupantWellbeingLayoutDef = {
+  minRows?: number;
+  maxRows?: number;
+  addRowLabel?: string;
+  permanentOccupancyGlobalKey?: string;
+};
+
+export type WasteManagementSourceAnnexDef = {
+  tab?: string;
+  subtab: string;
+  materialField?: string;
+  otherMaterialField?: string;
+};
+
+export type WasteManagementLayoutDef = {
+  minRows?: number;
+  sourceAnnex?: WasteManagementSourceAnnexDef;
+  unitOptions?: Record<string, string>;
+  materialOptions?: Record<string, string>;
+  materialOptionsCatalogPath?: string;
 };
 
 export type WaterBalanceRowDef = {
@@ -319,6 +493,17 @@ export type AnnexureSchemaDefinition = {
   ventilationSummary?: AnnexureVentilationSummaryDef;
   rainwaterLayout?: AnnexureRainwaterLayoutDef;
   waterEfficiencyLayout?: AnnexureWaterEfficiencyLayoutDef;
+  greenInteriorsWcTwoLayout?: GiWcTwoLayoutDef;
+  conditionedSpacesLayout?: ConditionedSpacesLayoutDef;
+  naturalVentilationLayout?: NaturalVentilationLayoutDef;
+  lpdBuildingAreaLayout?: LpdBuildingAreaLayoutDef;
+  lpdSpaceFunctionLayout?: LpdSpaceFunctionLayoutDef;
+  onsiteRenewableLayout?: OnsiteRenewableLayoutDef;
+  masterMaterialLayout?: MasterMaterialLayoutDef;
+  acFreshAirLayout?: AcFreshAirLayoutDef;
+  daylightNoiseLayout?: DaylightNoiseLayoutDef;
+  occupantWellbeingLayout?: OccupantWellbeingLayoutDef;
+  wasteManagementLayout?: WasteManagementLayoutDef;
   waterBalanceLayout?: AnnexureWaterBalanceLayoutDef;
   wastewaterReuseLayout?: AnnexureWastewaterReuseLayoutDef;
   table?: AnnexureTableDef;

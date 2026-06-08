@@ -41,14 +41,21 @@ function clampDecimal(raw: string): string {
   return f.length > 2 ? `${w}.${f.slice(0, 2)}` : raw;
 }
 
+function effectiveCase(draft: RainwaterAnnexState, layout: NonNullable<AnnexureSchemaDefinition["rainwaterLayout"]>): string {
+  if (layout.hideCaseSelector && layout.defaultCase) return layout.defaultCase;
+  return draft.case || layout.defaultCase || "";
+}
+
 function recalcState(
   draft: RainwaterAnnexState,
   coeffs: Record<string, number>,
   ratingTypeId: number,
+  layout: NonNullable<AnnexureSchemaDefinition["rainwaterLayout"]>,
 ): RainwaterAnnexState {
+  const caseVal = effectiveCase(draft, layout);
   const average = averagePeakRainfall(draft.rainfallRows);
   const avgNum = parseFloat(average) || 0;
-  const { oneday, caseRange } = onedayFromCase(draft.case, avgNum, ratingTypeId);
+  const { oneday, caseRange } = onedayFromCase(caseVal, avgNum, ratingTypeId);
 
   const surfaceRows = draft.surfaceRows.map((row) => {
     const next = computeSurfaceRow(String(row.surface ?? ""), String(row.area ?? ""), coeffs);
@@ -57,7 +64,7 @@ function recalcState(
 
   const total_rain = sumImpervious(surfaceRows);
   const summary = computeRainwaterSummary({
-    caseVal: draft.case,
+    caseVal,
     totalRain: parseFloat(total_rain) || 0,
     average: avgNum,
     oneday: parseFloat(oneday) || 0,
@@ -67,6 +74,7 @@ function recalcState(
 
   return {
     ...draft,
+    case: caseVal,
     average,
     oneday,
     caseRange,
@@ -90,6 +98,7 @@ export function AnnexureRainwaterRenderer({
   const surfaceColumns = layout.surfaceTable?.columns ?? [];
   const minSurfaceRows = layout.surfaceTable?.minRows ?? 1;
   const maxSurfaceRows = layout.surfaceTable?.maxRows ?? 50;
+  const allowAddRows = layout.surfaceTable?.allowAddRows !== false;
 
   const harvestingCapacity = useMemo(() => {
     const idx = new RatingDataIndex(formState);
@@ -97,7 +106,9 @@ export function AnnexureRainwaterRenderer({
     if (fromExtras) return fromExtras;
     return (
       idx.get("project_details", "water_conservation_details", "rainwater_harvesting_capacity") ||
+      idx.get("project_details", "project_details", "rainwater_harvesting_capacity") ||
       idx.getRelated("rainwater_harvesting_capacity", "water_conservation") ||
+      idx.getRelated("rainwater_harvesting_capacity", "project_details") ||
       ""
     );
   }, [formState, globalExtras]);
@@ -118,6 +129,7 @@ export function AnnexureRainwaterRenderer({
       hydrateRainwaterAnnex(schema, formState, tab, subtab, harvestingCapacity),
       coeffs,
       ratingTypeId,
+      layout,
     ),
   );
 
@@ -127,9 +139,10 @@ export function AnnexureRainwaterRenderer({
         hydrateRainwaterAnnex(schema, formState, tab, subtab, harvestingCapacity),
         coeffs,
         ratingTypeId,
+        layout,
       ),
     );
-  }, [schema, formState, tab, subtab, dataSignature, harvestingCapacity, coeffs, ratingTypeId]);
+  }, [schema, formState, tab, subtab, dataSignature, harvestingCapacity, coeffs, ratingTypeId, layout]);
 
   const updateSave = useCallback(() => {
     saveHandleRef.current = {
@@ -146,9 +159,9 @@ export function AnnexureRainwaterRenderer({
 
   const setDraftRecalc = useCallback(
     (fn: (s: RainwaterAnnexState) => RainwaterAnnexState) => {
-      setDraft((prev) => recalcState(fn(prev), coeffs, ratingTypeId));
+      setDraft((prev) => recalcState(fn(prev), coeffs, ratingTypeId, layout));
     },
-    [coeffs, ratingTypeId],
+    [coeffs, ratingTypeId, layout],
   );
 
   if (schema.ratingTypeIds?.length && !schema.ratingTypeIds.includes(ratingTypeId)) {
@@ -276,22 +289,24 @@ export function AnnexureRainwaterRenderer({
               </tr>
             </thead>
             <tbody>
-              <tr className="border-b border-border/70">
-                <td className="px-3 py-2 font-medium">Applicability</td>
-                <td className="px-2 py-1">
-                  <select
-                    className={inputClass}
-                    value={draft.case}
-                    onChange={(e) => setDraftRecalc((s) => ({ ...s, case: e.target.value }))}
-                  >
-                    {Object.entries(caseOpts).map(([val, label]) => (
-                      <option key={val} value={val}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-              </tr>
+              {!layout.hideCaseSelector ? (
+                <tr className="border-b border-border/70">
+                  <td className="px-3 py-2 font-medium">Applicability</td>
+                  <td className="px-2 py-1">
+                    <select
+                      className={inputClass}
+                      value={draft.case}
+                      onChange={(e) => setDraftRecalc((s) => ({ ...s, case: e.target.value }))}
+                    >
+                      {Object.entries(caseOpts).map(([val, label]) => (
+                        <option key={val} value={val}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                </tr>
+              ) : null}
               <tr className="border-b border-border/70">
                 <td className="px-3 py-2 font-medium">One-Day Rainfall (m)</td>
                 <td className="px-2 py-1">
@@ -307,22 +322,24 @@ export function AnnexureRainwaterRenderer({
         </div>
 
         <div className="space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <button
-              type="button"
-              onClick={() =>
-                setDraftRecalc((s) => ({
-                  ...s,
-                  surfaceRows: [...s.surfaceRows, { surface: "", runoff: "", area: "", imprevious_area: "0" }],
-                }))
-              }
-              disabled={draft.surfaceRows.length >= maxSurfaceRows}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-ocean px-4 py-2 text-sm font-medium text-white hover:bg-ocean-hover disabled:opacity-50"
-            >
-              <Plus className="h-4 w-4" />
-              {layout.surfaceTable?.addRowLabel ?? "Add Row"}
-            </button>
-          </div>
+          {allowAddRows ? (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setDraftRecalc((s) => ({
+                    ...s,
+                    surfaceRows: [...s.surfaceRows, { surface: "", runoff: "", area: "", imprevious_area: "0" }],
+                  }))
+                }
+                disabled={draft.surfaceRows.length >= maxSurfaceRows}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-ocean px-4 py-2 text-sm font-medium text-white hover:bg-ocean-hover disabled:opacity-50"
+              >
+                <Plus className="h-4 w-4" />
+                {layout.surfaceTable?.addRowLabel ?? "Add Row"}
+              </button>
+            </div>
+          ) : null}
           <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full min-w-[720px] border-collapse text-sm">
               <thead>
@@ -333,7 +350,7 @@ export function AnnexureRainwaterRenderer({
                       {c.header}
                     </th>
                   ))}
-                  <th className="w-10" />
+                  {allowAddRows ? <th className="w-10" /> : null}
                 </tr>
               </thead>
               <tbody>
@@ -387,21 +404,23 @@ export function AnnexureRainwaterRenderer({
                         )}
                       </td>
                     ))}
-                    <td className="px-1 py-1 text-center">
-                      <button
-                        type="button"
-                        disabled={draft.surfaceRows.length <= minSurfaceRows}
-                        onClick={() =>
-                          setDraftRecalc((s) => ({
-                            ...s,
-                            surfaceRows: s.surfaceRows.filter((_, i) => i !== ri),
-                          }))
-                        }
-                        className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </td>
+                    {allowAddRows ? (
+                      <td className="px-1 py-1 text-center">
+                        <button
+                          type="button"
+                          disabled={draft.surfaceRows.length <= minSurfaceRows}
+                          onClick={() =>
+                            setDraftRecalc((s) => ({
+                              ...s,
+                              surfaceRows: s.surfaceRows.filter((_, i) => i !== ri),
+                            }))
+                          }
+                          className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    ) : null}
                   </tr>
                 ))}
               </tbody>

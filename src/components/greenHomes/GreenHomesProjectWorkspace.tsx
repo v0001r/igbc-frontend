@@ -140,12 +140,26 @@ export function GreenHomesProjectWorkspace({ projectId }: Props) {
       site_area: idx.getRelated("site_area", "sustainable_design"),
       rainwater_harvesting_capacity:
         idx.get("project_details", "water_conservation_details", "rainwater_harvesting_capacity") ||
-        idx.getRelated("rainwater_harvesting_capacity", "water_conservation"),
+        idx.get("project_details", "project_details", "rainwater_harvesting_capacity") ||
+        idx.getRelated("rainwater_harvesting_capacity", "water_conservation") ||
+        idx.getRelated("rainwater_harvesting_capacity", "project_details"),
       occupancy:
         idx.get("project_details", "project_details", "occupancy_green") ||
         idx.getRelated("occupancy_green", "project_details") ||
         idx.get("project_details", "project_details", "occupancy") ||
         idx.getRelated("occupancy", "project_details"),
+      projects_details_permanent_occupancy:
+        idx.get("project_details", "project_details", "projects_details_permanent_occupancy") ||
+        idx.getRelated("projects_details_permanent_occupancy", "project_details"),
+      projects_details_floating_population:
+        idx.get("project_details", "project_details", "projects_details_floating_population") ||
+        idx.getRelated("projects_details_floating_population", "project_details"),
+      topology_type:
+        idx.get("project_details", "project_details", "topology_type") ||
+        idx.getRelated("topology_type", "project_details"),
+      annual_working_days:
+        idx.get("project_details", "water_conservation_details", "annual_working_days") ||
+        idx.getRelated("annual_working_days", "water_conservation"),
       capacity_of_stp:
         idx.get("project_details", "water_conservation_details", "capacity_of_stp") ||
         idx.getRelated("capacity_of_stp", "water_conservation"),

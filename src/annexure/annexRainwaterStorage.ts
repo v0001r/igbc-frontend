@@ -63,10 +63,12 @@ export function hydrateRainwaterAnnex(
     });
   }
 
+  const surfaceTable = schema.rainwaterLayout?.surfaceTable;
+  const fixedSurfaceRows = surfaceTable?.minRows === surfaceTable?.maxRows ? surfaceTable.minRows : undefined;
   const surfaceLen = Math.max(
     parseJsonArray(getParam(form, tab, subtab, "surface")).length,
     parseJsonArray(getParam(form, tab, subtab, "area")).length,
-    schema.rainwaterLayout?.surfaceTable?.defaultRowCount ?? 6,
+    fixedSurfaceRows ?? surfaceTable?.defaultRowCount ?? 6,
   );
 
   const surfaceRows: RowRecord[] = [];
@@ -88,7 +90,10 @@ export function hydrateRainwaterAnnex(
     location: getParam(form, tab, subtab, "location") ?? "",
     rainfallRows,
     average: getParam(form, tab, subtab, "average") ?? "",
-    case: getParam(form, tab, subtab, "case") ?? "",
+    case:
+      getParam(form, tab, subtab, "case") ||
+      schema.rainwaterLayout?.defaultCase ||
+      "",
     oneday: getParam(form, tab, subtab, "oneday") ?? "",
     caseRange: "",
     surfaceRows,

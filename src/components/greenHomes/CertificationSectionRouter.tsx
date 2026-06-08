@@ -83,6 +83,38 @@ export function CertificationSectionRouter({
   const hasWaterEfficiencyAnnex =
     schema?.renderMode === "waterEfficiency" &&
     (schema.waterEfficiencyLayout?.presetRows?.length ?? 0) > 0;
+  const hasGiWcTwoAnnex =
+    schema?.renderMode === "greenInteriorsWcTwo" &&
+    (schema.greenInteriorsWcTwoLayout?.presetRows?.length ?? 0) > 0;
+  const hasConditionedSpacesAnnex =
+    schema?.renderMode === "conditionedSpaces" &&
+    Boolean(schema.conditionedSpacesLayout?.sourceAnnex?.subtab);
+  const hasNaturalVentilationAnnex =
+    schema?.renderMode === "naturalVentilation" &&
+    Boolean(schema.naturalVentilationLayout?.sourceAnnex?.subtab);
+  const hasLpdBuildingAreaAnnex =
+    schema?.renderMode === "lpdBuildingAreaMethod" &&
+    Boolean(schema.lpdBuildingAreaLayout?.sourceAnnex?.subtab);
+  const hasLpdSpaceFunctionAnnex =
+    schema?.renderMode === "lpdSpaceFunctionMethod" &&
+    Boolean(schema.lpdSpaceFunctionLayout?.sourceAnnex?.subtab);
+  const hasOnsiteRenewableAnnex =
+    schema?.renderMode === "onsiteRenewableEnergy" && Boolean(schema.onsiteRenewableLayout);
+  const hasMasterMaterialAnnex =
+    schema?.renderMode === "masterMaterial" &&
+    Boolean(schema.masterMaterialLayout?.materialOptions);
+  const hasAcFreshAirAnnex =
+    schema?.renderMode === "acFreshAir" &&
+    Boolean(schema.acFreshAirLayout?.sourceAnnex?.subtab);
+  const hasDaylightNoiseAnnex =
+    schema?.renderMode === "daylightNoise" &&
+    Boolean(schema.daylightNoiseLayout?.sourceAnnex?.subtab);
+  const hasOccupantWellbeingAnnex =
+    schema?.renderMode === "occupantWellbeing" &&
+    Boolean(schema.occupantWellbeingLayout);
+  const hasWasteManagementAnnex =
+    schema?.renderMode === "wasteManagement" &&
+    Boolean(schema.wasteManagementLayout?.sourceAnnex?.subtab);
   const hasWaterBalanceAnnex =
     schema?.renderMode === "waterBalance" &&
     (schema.waterBalanceLayout?.sections?.length ?? 0) > 0;
@@ -97,6 +129,17 @@ export function CertificationSectionRouter({
       hasDwellingAnnex ||
       hasRainwaterAnnex ||
       hasWaterEfficiencyAnnex ||
+      hasGiWcTwoAnnex ||
+      hasConditionedSpacesAnnex ||
+      hasNaturalVentilationAnnex ||
+      hasLpdBuildingAreaAnnex ||
+      hasLpdSpaceFunctionAnnex ||
+      hasOnsiteRenewableAnnex ||
+      hasMasterMaterialAnnex ||
+      hasAcFreshAirAnnex ||
+      hasDaylightNoiseAnnex ||
+      hasOccupantWellbeingAnnex ||
+      hasWasteManagementAnnex ||
       hasWaterBalanceAnnex ||
       hasWastewaterReuseAnnex ||
       (schema?.table?.columns?.length ?? 0) > 0);

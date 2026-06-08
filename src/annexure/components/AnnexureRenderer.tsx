@@ -15,6 +15,17 @@ import { AnnexureComparisonTable } from "@/annexure/components/AnnexureCompariso
 import { AnnexureDwellingRenderer } from "@/annexure/components/AnnexureDwellingRenderer";
 import { AnnexureRainwaterRenderer } from "@/annexure/components/AnnexureRainwaterRenderer";
 import { AnnexureWaterEfficiencyRenderer } from "@/annexure/components/AnnexureWaterEfficiencyRenderer";
+import { AnnexureGiWcTwoRenderer } from "@/annexure/components/AnnexureGiWcTwoRenderer";
+import { AnnexureConditionedSpacesRenderer } from "@/annexure/components/AnnexureConditionedSpacesRenderer";
+import { AnnexureNaturalVentilationRenderer } from "@/annexure/components/AnnexureNaturalVentilationRenderer";
+import { AnnexureLpdBuildingAreaRenderer } from "@/annexure/components/AnnexureLpdBuildingAreaRenderer";
+import { AnnexureLpdSpaceFunctionRenderer } from "@/annexure/components/AnnexureLpdSpaceFunctionRenderer";
+import { AnnexureOnsiteRenewableRenderer } from "@/annexure/components/AnnexureOnsiteRenewableRenderer";
+import { AnnexureMasterMaterialRenderer } from "@/annexure/components/AnnexureMasterMaterialRenderer";
+import { AnnexureAcFreshAirRenderer } from "@/annexure/components/AnnexureAcFreshAirRenderer";
+import { AnnexureDaylightNoiseRenderer } from "@/annexure/components/AnnexureDaylightNoiseRenderer";
+import { AnnexureOccupantWellbeingRenderer } from "@/annexure/components/AnnexureOccupantWellbeingRenderer";
+import { AnnexureWasteManagementRenderer } from "@/annexure/components/AnnexureWasteManagementRenderer";
 import { AnnexureWaterBalanceRenderer } from "@/annexure/components/AnnexureWaterBalanceRenderer";
 import { AnnexureWastewaterReuseRenderer } from "@/annexure/components/AnnexureWastewaterReuseRenderer";
 import {
@@ -62,6 +73,39 @@ export function AnnexureRenderer(props: Props) {
   }
   if (props.schema.renderMode === "waterEfficiency") {
     return <AnnexureWaterEfficiencyRenderer {...props} />;
+  }
+  if (props.schema.renderMode === "greenInteriorsWcTwo") {
+    return <AnnexureGiWcTwoRenderer {...props} />;
+  }
+  if (props.schema.renderMode === "conditionedSpaces") {
+    return <AnnexureConditionedSpacesRenderer {...props} />;
+  }
+  if (props.schema.renderMode === "naturalVentilation") {
+    return <AnnexureNaturalVentilationRenderer {...props} />;
+  }
+  if (props.schema.renderMode === "lpdBuildingAreaMethod") {
+    return <AnnexureLpdBuildingAreaRenderer {...props} />;
+  }
+  if (props.schema.renderMode === "lpdSpaceFunctionMethod") {
+    return <AnnexureLpdSpaceFunctionRenderer {...props} />;
+  }
+  if (props.schema.renderMode === "onsiteRenewableEnergy") {
+    return <AnnexureOnsiteRenewableRenderer {...props} />;
+  }
+  if (props.schema.renderMode === "masterMaterial") {
+    return <AnnexureMasterMaterialRenderer {...props} />;
+  }
+  if (props.schema.renderMode === "acFreshAir") {
+    return <AnnexureAcFreshAirRenderer {...props} />;
+  }
+  if (props.schema.renderMode === "daylightNoise") {
+    return <AnnexureDaylightNoiseRenderer {...props} />;
+  }
+  if (props.schema.renderMode === "occupantWellbeing") {
+    return <AnnexureOccupantWellbeingRenderer {...props} />;
+  }
+  if (props.schema.renderMode === "wasteManagement") {
+    return <AnnexureWasteManagementRenderer {...props} />;
   }
   if (props.schema.renderMode === "waterBalance") {
     return <AnnexureWaterBalanceRenderer {...props} />;
