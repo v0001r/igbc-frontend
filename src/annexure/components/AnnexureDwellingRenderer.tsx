@@ -250,6 +250,99 @@ function RowTableTowerPanel({
   };
 
   const renderHeaderRows = () => {
+    if (layout.rowTableHeaderStyle === "fte") {
+      const groups = layout.orientationColumnGroups ?? [];
+      const groupedParams = new Set(groups.flatMap((g) => g.params));
+      const beforeGroup = columns.filter((c) => {
+        if (groupedParams.has(c.param)) return false;
+        const firstGroupIdx = columns.findIndex((col) => groupedParams.has(col.param));
+        return columns.indexOf(c) < firstGroupIdx;
+      });
+      const afterGroup = columns.filter((c) => {
+        if (groupedParams.has(c.param)) return false;
+        const lastGroupIdx = columns.reduce(
+          (max, col, i) => (groupedParams.has(col.param) ? i : max),
+          -1,
+        );
+        return columns.indexOf(c) > lastGroupIdx;
+      });
+      const groupColumns = groups.flatMap((g) =>
+        g.params
+          .map((p) => columns.find((c) => c.param === p))
+          .filter((c): c is NonNullable<typeof c> => Boolean(c)),
+      );
+      const towerNameLabel =
+        layout.towerNameLabel ?? "Building Name / Building Typology / Space Name";
+      const nameColSpan = beforeGroup.length;
+
+      return (
+        <>
+          <tr className="border-b border-border bg-ocean/10">
+            <th
+              rowSpan={3}
+              className="sticky left-0 z-20 w-10 bg-ocean/10 px-2 py-2 text-center font-semibold text-ocean"
+            >
+              #
+            </th>
+            <th
+              colSpan={nameColSpan}
+              className="px-3 py-2 text-center text-sm font-semibold text-ocean"
+            >
+              {towerNameLabel}
+            </th>
+            <th colSpan={2} className="px-2 py-1.5">
+              <input
+                type="text"
+                className={inputClass}
+                placeholder="Building / typology / space name"
+                value={String(tower[nameParam] ?? "")}
+                onChange={(e) => onTowerChange((t) => ({ ...t, [nameParam]: e.target.value }))}
+              />
+            </th>
+          </tr>
+          <tr className="border-b border-border bg-ocean/10">
+            {beforeGroup.map((c) => (
+              <th
+                key={c.param}
+                rowSpan={2}
+                className={`whitespace-nowrap px-2 py-2 text-center text-xs font-semibold text-ocean ${c.width ?? ""}`}
+              >
+                {c.header}
+              </th>
+            ))}
+            {groups.map((g) => (
+              <th
+                key={g.label}
+                colSpan={g.params.length}
+                className="px-2 py-2 text-center text-xs font-semibold text-ocean"
+              >
+                {g.label}
+              </th>
+            ))}
+            {afterGroup.map((c) => (
+              <th
+                key={c.param}
+                rowSpan={2}
+                className={`whitespace-nowrap px-2 py-2 text-center text-xs font-semibold text-ocean ${c.width ?? ""}`}
+              >
+                {c.header}
+              </th>
+            ))}
+          </tr>
+          <tr className="border-b border-border bg-ocean/10">
+            {groupColumns.map((c) => (
+              <th
+                key={c.param}
+                className={`whitespace-nowrap px-2 py-2 text-center text-xs font-medium text-ocean ${c.width ?? ""}`}
+              >
+                {c.header}
+              </th>
+            ))}
+          </tr>
+        </>
+      );
+    }
+
     if (complianceHeaderParam) {
       return (
         <>
@@ -414,9 +507,13 @@ function RowTableTowerPanel({
       ) : null}
 
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 pr-8">
-        <h4 className="text-sm font-semibold text-ocean">
-          Dwelling Unit Type {tower.tableIndex}
-        </h4>
+        {layout.rowTableHeaderStyle !== "fte" ? (
+          <h4 className="text-sm font-semibold text-ocean">
+            Dwelling Unit Type {tower.tableIndex}
+          </h4>
+        ) : (
+          <span />
+        )}
         <button
           type="button"
           onClick={addRow}

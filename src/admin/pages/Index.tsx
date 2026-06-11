@@ -11,6 +11,7 @@ import ProjectsPage from "./ProjectsPage";
 import ProjectCertificationPage from "./ProjectCertificationPage";
 import ProfilePage from "./ProfilePage";
 import ChangePasswordPage from "./ChangePasswordPage";
+import UsersManagementPage from "./users/UsersManagementPage";
 
 const pageTitles: Record<string, string> = {
   dashboard: "Dashboard",
@@ -20,7 +21,7 @@ const pageTitles: Record<string, string> = {
   "ap-associate": "AP Associate", "ap-associate-add": "Add Associate", "ap-associate-assign": "Assign Associate",
   "project-registration": "Project Registration", "project-registration-pending": "Pending Projects", "project-registration-approved": "Approved Projects", "project-registration-rejected": "Rejected Projects",
   "project-certification": "Project Certification", "project-certification-review": "Certification Review", "project-certification-approved": "Approved Certifications", "project-certification-issued": "Issued Certifications",
-  users: "Users", "users-add": "Add User", "users-roles": "User Roles",
+  "users-staff": "IGBC Staff", "users-tpa": "TPA Users",
   events: "Events", "events-create": "Create Event", "events-categories": "Event Categories",
   "support-assistance": "Support/Assistance",
   "igbc-staff": "IGBC Staff", "igbc-staff-add": "Add Staff", "igbc-staff-roles": "Staff Roles",
@@ -38,7 +39,8 @@ const adminPathByKey: Record<string, string> = {
   "ap-associate": "ap-associate",
   "project-registration": "project-registration",
   "project-certification": "project-certification",
-  users: "users",
+  "users-staff": "users/staff",
+  "users-tpa": "users/tpa",
   events: "events",
   "support-assistance": "support-assistance",
   "igbc-staff": "igbc-staff",
@@ -90,6 +92,10 @@ const Index = () => {
       case "project-certification": return <ProjectCertificationPage />;
       case "profile": return <ProfilePage />;
       case "change-password": return <ChangePasswordPage />;
+      case "users-staff":
+        return <UsersManagementPage roleFilter="IGBC_STAFF" title="IGBC Staff" />;
+      case "users-tpa":
+        return <UsersManagementPage roleFilter="TPA" title="TPA Users" />;
       default: return <PlaceholderPage title={pageTitles[activeItem] || activeItem} />;
     }
   };

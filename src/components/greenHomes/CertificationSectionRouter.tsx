@@ -5,6 +5,7 @@ import {
   AnnexureRenderer,
   type AnnexureRendererHandle,
 } from "@/annexure/components/AnnexureRenderer";
+import { hasInteractiveAnnexSchema } from "@/annexure/annexureSchemaUtils";
 import type { AnnexureSchemaDefinition } from "@/annexure/annexureTypes";
 import type { CertificationFormResponse } from "@/lib/certificationForm";
 import { formatBladeIncludePath, resolveAnnexure, type AnnexureBladeRoute } from "@/lib/annexureRegistry";
@@ -35,6 +36,7 @@ type Props = {
   onChange: (name: string, value: string) => void;
   onFilesChange?: (name: string, files: File[]) => void;
   annexSaveRef: MutableRefObject<AnnexureRendererHandle | null>;
+  readOnly?: boolean;
 };
 
 export function CertificationSectionRouter({
@@ -57,6 +59,7 @@ export function CertificationSectionRouter({
   onChange,
   onFilesChange,
   annexSaveRef,
+  readOnly = false,
 }: Props) {
   const hasConfigFields = fields.length > 0;
   const annexure = resolveAnnexure(
@@ -73,76 +76,7 @@ export function CertificationSectionRouter({
 
   const sectionKey = `${tab}/${subtab}`;
   const schema = annexureSchemas?.[sectionKey];
-  const hasComparisonAnnex =
-    schema?.renderMode === "comparison" && (schema.comparisonLayout?.sections?.length ?? 0) > 0;
-  const hasDwellingAnnex =
-    schema?.renderMode === "dwelling" &&
-    Boolean(schema.dwellingLayout?.orientationColumns?.length);
-  const hasRainwaterAnnex =
-    schema?.renderMode === "rainwater" && Boolean(schema.rainwaterLayout?.rainfall);
-  const hasWaterEfficiencyAnnex =
-    schema?.renderMode === "waterEfficiency" &&
-    (schema.waterEfficiencyLayout?.presetRows?.length ?? 0) > 0;
-  const hasGiWcTwoAnnex =
-    schema?.renderMode === "greenInteriorsWcTwo" &&
-    (schema.greenInteriorsWcTwoLayout?.presetRows?.length ?? 0) > 0;
-  const hasConditionedSpacesAnnex =
-    schema?.renderMode === "conditionedSpaces" &&
-    Boolean(schema.conditionedSpacesLayout?.sourceAnnex?.subtab);
-  const hasNaturalVentilationAnnex =
-    schema?.renderMode === "naturalVentilation" &&
-    Boolean(schema.naturalVentilationLayout?.sourceAnnex?.subtab);
-  const hasLpdBuildingAreaAnnex =
-    schema?.renderMode === "lpdBuildingAreaMethod" &&
-    Boolean(schema.lpdBuildingAreaLayout?.sourceAnnex?.subtab);
-  const hasLpdSpaceFunctionAnnex =
-    schema?.renderMode === "lpdSpaceFunctionMethod" &&
-    Boolean(schema.lpdSpaceFunctionLayout?.sourceAnnex?.subtab);
-  const hasOnsiteRenewableAnnex =
-    schema?.renderMode === "onsiteRenewableEnergy" && Boolean(schema.onsiteRenewableLayout);
-  const hasMasterMaterialAnnex =
-    schema?.renderMode === "masterMaterial" &&
-    Boolean(schema.masterMaterialLayout?.materialOptions);
-  const hasAcFreshAirAnnex =
-    schema?.renderMode === "acFreshAir" &&
-    Boolean(schema.acFreshAirLayout?.sourceAnnex?.subtab);
-  const hasDaylightNoiseAnnex =
-    schema?.renderMode === "daylightNoise" &&
-    Boolean(schema.daylightNoiseLayout?.sourceAnnex?.subtab);
-  const hasOccupantWellbeingAnnex =
-    schema?.renderMode === "occupantWellbeing" &&
-    Boolean(schema.occupantWellbeingLayout);
-  const hasWasteManagementAnnex =
-    schema?.renderMode === "wasteManagement" &&
-    Boolean(schema.wasteManagementLayout?.sourceAnnex?.subtab);
-  const hasWaterBalanceAnnex =
-    schema?.renderMode === "waterBalance" &&
-    (schema.waterBalanceLayout?.sections?.length ?? 0) > 0;
-  const hasWastewaterReuseAnnex =
-    schema?.renderMode === "wastewaterReuse" &&
-    (schema.wastewaterReuseLayout?.reuseSection?.rows?.length ?? 0) > 0;
-  const hasConfigAnnex =
-    Boolean(schema) &&
-    (!schema?.ratingTypeIds?.length || schema.ratingTypeIds.includes(ratingTypeId)) &&
-    (schema?.renderMode === "reference" ||
-      hasComparisonAnnex ||
-      hasDwellingAnnex ||
-      hasRainwaterAnnex ||
-      hasWaterEfficiencyAnnex ||
-      hasGiWcTwoAnnex ||
-      hasConditionedSpacesAnnex ||
-      hasNaturalVentilationAnnex ||
-      hasLpdBuildingAreaAnnex ||
-      hasLpdSpaceFunctionAnnex ||
-      hasOnsiteRenewableAnnex ||
-      hasMasterMaterialAnnex ||
-      hasAcFreshAirAnnex ||
-      hasDaylightNoiseAnnex ||
-      hasOccupantWellbeingAnnex ||
-      hasWasteManagementAnnex ||
-      hasWaterBalanceAnnex ||
-      hasWastewaterReuseAnnex ||
-      (schema?.table?.columns?.length ?? 0) > 0);
+  const hasConfigAnnex = hasInteractiveAnnexSchema(schema, ratingTypeId);
 
   return (
     <div className="space-y-4">
@@ -158,6 +92,7 @@ export function CertificationSectionRouter({
           sectionValues={sectionValues}
           globalExtras={annexGlobalExtras}
           saveHandleRef={annexSaveRef}
+          readOnly={readOnly}
         />
       ) : AnnexComponent ? (
         <AnnexComponent
@@ -182,10 +117,16 @@ export function CertificationSectionRouter({
           errors={errors}
           onChange={onChange}
           onFilesChange={onFilesChange}
+          readOnly={readOnly}
         />
       ) : !annexure && !hasConfigAnnex ? (
         <section className="rounded-lg border border-border bg-card p-6 text-sm text-muted-foreground shadow-sm">
           No form fields configured for this section.
+        </section>
+      ) : !hasConfigAnnex && annexure && !annexure.customUiOnly ? (
+        <section className="rounded-lg border border-border bg-card p-6 text-sm text-muted-foreground shadow-sm">
+          Annexure UI is not available for this section yet. Restart the backend after pulling the latest
+          annexure schema, then hard-refresh this page.
         </section>
       ) : null}
     </div>

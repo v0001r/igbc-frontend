@@ -1,11 +1,13 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Leaf, Mail, Lock, ArrowRight } from "lucide-react";
 import { login, persistAuth } from "@/lib/auth";
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const resetSuccess = (location.state as { resetSuccess?: string } | null)?.resetSuccess;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -93,6 +95,12 @@ const Login = () => {
           <h2 className="text-2xl font-bold text-foreground">Welcome back</h2>
           <p className="mt-1 text-sm text-muted-foreground">Sign in to your IGBC account</p>
 
+          {resetSuccess && (
+            <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="mt-4 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
+              {resetSuccess}
+            </motion.div>
+          )}
+
           {error && (
             <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="mt-4 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
               {error}
@@ -117,7 +125,7 @@ const Login = () => {
             <div>
               <div className="mb-1.5 flex items-center justify-between">
                 <label className="text-sm font-medium text-foreground">Password</label>
-                <Link to="/forgot-password" className="text-xs font-medium text-primary hover:underline">Forgot password?</Link>
+                <Link to="/forgot-password?from=client" className="text-xs font-medium text-primary hover:underline">Forgot password?</Link>
               </div>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" strokeWidth={1.5} />

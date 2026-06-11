@@ -28,6 +28,19 @@ import { AnnexureOccupantWellbeingRenderer } from "@/annexure/components/Annexur
 import { AnnexureWasteManagementRenderer } from "@/annexure/components/AnnexureWasteManagementRenderer";
 import { AnnexureWaterBalanceRenderer } from "@/annexure/components/AnnexureWaterBalanceRenderer";
 import { AnnexureWastewaterReuseRenderer } from "@/annexure/components/AnnexureWastewaterReuseRenderer";
+import { AnnexureUrbanHeatRoofRenderer } from "@/annexure/components/AnnexureUrbanHeatRoofRenderer";
+import { AnnexureUrbanHeatNonRoofRenderer } from "@/annexure/components/AnnexureUrbanHeatNonRoofRenderer";
+import { AnnexureExistingRainfallRenderer } from "@/annexure/components/AnnexureExistingRainfallRenderer";
+import { AnnexureExistingWaterEfficiencyRenderer } from "@/annexure/components/AnnexureExistingWaterEfficiencyRenderer";
+import { AnnexureExistingWaterConsumptionRenderer } from "@/annexure/components/AnnexureExistingWaterConsumptionRenderer";
+import { AnnexureExistingAlternativePerformanceRenderer } from "@/annexure/components/AnnexureExistingAlternativePerformanceRenderer";
+import { AnnexureEemr2OfficeRenderer } from "@/annexure/components/AnnexureEemr2OfficeRenderer";
+import { AnnexureEpiCalculationRenderer } from "@/annexure/components/AnnexureEpiCalculationRenderer";
+import { AnnexureEpiLimitCalculationRenderer } from "@/annexure/components/AnnexureEpiLimitCalculationRenderer";
+import { AnnexureExistingSimulationMethodRenderer } from "@/annexure/components/AnnexureExistingSimulationMethodRenderer";
+import { AnnexureExistingOneSiteRenewableRenderer } from "@/annexure/components/AnnexureExistingOneSiteRenewableRenderer";
+import { AnnexureExistingSingleZoneRenderer } from "@/annexure/components/AnnexureExistingSingleZoneRenderer";
+import { schemaMatchesRatingType } from "@/annexure/annexureSchemaUtils";
 import {
   buildSavePayloadFromComparison,
   getComparisonLayout,
@@ -50,6 +63,7 @@ type Props = {
   sectionValues: Record<string, string>;
   globalExtras?: Record<string, string>;
   saveHandleRef: MutableRefObject<AnnexureRendererHandle | null>;
+  readOnly?: boolean;
 };
 
 function emptyRow(schema: AnnexureSchemaDefinition): RowRecord {
@@ -62,6 +76,9 @@ function emptyRow(schema: AnnexureSchemaDefinition): RowRecord {
 }
 
 export function AnnexureRenderer(props: Props) {
+  if (!schemaMatchesRatingType(props.schema, props.ratingTypeId)) {
+    return null;
+  }
   if (props.schema.renderMode === "comparison") {
     return <AnnexureComparisonRenderer {...props} />;
   }
@@ -112,6 +129,45 @@ export function AnnexureRenderer(props: Props) {
   }
   if (props.schema.renderMode === "wastewaterReuse") {
     return <AnnexureWastewaterReuseRenderer {...props} />;
+  }
+  if (props.schema.renderMode === "urbanHeatRoof") {
+    return <AnnexureUrbanHeatRoofRenderer {...props} />;
+  }
+  if (props.schema.renderMode === "urbanHeatNonRoof") {
+    return <AnnexureUrbanHeatNonRoofRenderer {...props} />;
+  }
+  if (props.schema.renderMode === "existingRainfall") {
+    return <AnnexureExistingRainfallRenderer {...props} />;
+  }
+  if (props.schema.renderMode === "existingWaterEfficiency") {
+    return <AnnexureExistingWaterEfficiencyRenderer {...props} />;
+  }
+  if (props.schema.renderMode === "existingWaterConsumption") {
+    return <AnnexureExistingWaterConsumptionRenderer {...props} />;
+  }
+  if (props.schema.renderMode === "existingAlternativePerformance") {
+    return <AnnexureExistingAlternativePerformanceRenderer {...props} />;
+  }
+  if (props.schema.renderMode === "eemr2Office") {
+    return <AnnexureEemr2OfficeRenderer {...props} />;
+  }
+  if (props.schema.renderMode === "epiCalculation") {
+    return <AnnexureEpiCalculationRenderer {...props} />;
+  }
+  if (props.schema.renderMode === "epiLimitCalculation") {
+    return <AnnexureEpiLimitCalculationRenderer {...props} />;
+  }
+  if (props.schema.renderMode === "existingSimulationMethod") {
+    return <AnnexureExistingSimulationMethodRenderer {...props} />;
+  }
+  if (props.schema.renderMode === "existingOneSiteRenewable") {
+    return <AnnexureExistingOneSiteRenewableRenderer {...props} />;
+  }
+  if (
+    props.schema.renderMode === "existingSingleZoneSystem" ||
+    props.schema.renderMode === "existingOutdoorAirSystem"
+  ) {
+    return <AnnexureExistingSingleZoneRenderer {...props} />;
   }
   if (props.schema.renderMode === "reference") {
     return (
@@ -205,6 +261,7 @@ function AnnexureTableRenderer({
   sectionValues,
   globalExtras,
   saveHandleRef,
+  readOnly = false,
 }: Props) {
   const getParam = useCallback(
     (param: string) =>
@@ -264,12 +321,13 @@ function AnnexureTableRenderer({
   const updateSaveHandle = useCallback(() => {
     const handle: AnnexureRendererHandle = {
       getSaveFields: () => {
+        if (readOnly) return [];
         const latest = runAnnexureCalculations(schema, draftRows, draftScalars, global);
         return buildSavePayloadFromAnnex(schema, latest);
       },
     };
     saveHandleRef.current = handle;
-  }, [schema, draftRows, draftScalars, global, saveHandleRef]);
+  }, [schema, draftRows, draftScalars, global, saveHandleRef, readOnly]);
 
   useEffect(() => {
     updateSaveHandle();
@@ -330,11 +388,11 @@ function AnnexureTableRenderer({
           headerRows={schema.table?.headerRows}
           footerRows={schema.footerRows}
           footerScalar={scalar}
-          onFooterScalarChange={onFooterScalarChange}
           evalCtx={evalCtx}
-          onRowChange={onRowChange}
-          onAddRow={onAddRow}
-          onRemoveRow={onRemoveRow}
+          onRowChange={readOnly ? undefined : onRowChange}
+          onAddRow={readOnly ? undefined : onAddRow}
+          onRemoveRow={readOnly ? undefined : onRemoveRow}
+          onFooterScalarChange={readOnly ? undefined : onFooterScalarChange}
         />
 
         {schema.summaryGroups?.length

@@ -5,6 +5,10 @@ export type AuthUser = {
   id: string;
   email: string;
   userType?: "m" | "s" | "a" | "T";
+  roleName?: string | null;
+  status?: "active" | "inactive";
+  isFirstLogin?: boolean;
+  isLead?: boolean;
   firstName: string;
   middleName?: string;
   lastName: string;
@@ -35,6 +39,7 @@ export type AuthUser = {
 export type AuthResponse = {
   accessToken: string;
   user: AuthUser;
+  mustChangePassword?: boolean;
 };
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
@@ -136,4 +141,41 @@ export async function updateMyProfile(payload: Partial<AuthUser>) {
   });
   localStorage.setItem(USER_KEY, JSON.stringify(user));
   return user;
+}
+
+export async function changePassword(payload: {
+  currentPassword: string;
+  newPassword: string;
+}) {
+  const result = await request<{ message: string; user: AuthUser }>("/auth/change-password", {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  localStorage.setItem(USER_KEY, JSON.stringify(result.user));
+  return result;
+}
+
+export async function forgotPassword(email: string) {
+  return request<{ message: string }>("/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function validateResetToken(token: string) {
+  return request<{ valid: boolean }>(`/auth/reset-password/${encodeURIComponent(token)}`, {
+    method: "GET",
+  });
+}
+
+export async function resetPassword(
+  token: string,
+  newPassword: string,
+  confirmPassword: string,
+) {
+  return request<{ message: string; loginPath: string }>("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ token, newPassword, confirmPassword }),
+  });
 }

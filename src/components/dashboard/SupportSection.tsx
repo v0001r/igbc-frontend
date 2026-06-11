@@ -31,21 +31,19 @@ export const SupportSection = () => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.25 }}
-      className="mb-10"
+      className="glass-section mb-10"
     >
-      <h2 className="mb-4 text-lg font-semibold text-foreground">
-        Support & Assistance
-      </h2>
+      <h2 className="glass-section-title">Support & Assistance</h2>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {contacts.length === 0 && (
-          <div className="rounded-2xl bg-card p-5 text-xs text-muted-foreground shadow-card sm:col-span-2 lg:col-span-4">
+          <div className="glass-card p-5 text-xs text-muted-foreground sm:col-span-2 lg:col-span-4">
             Support contacts are currently unavailable.
           </div>
         )}
         {contacts.map((c, i) => (
           <div
             key={c.id ?? i}
-            className="flex flex-col gap-3 rounded-2xl bg-card p-5 shadow-card"
+            className="glass-card glass-card-interactive flex flex-col gap-3 p-5"
           >
             <div>
               <p className="text-sm font-semibold text-foreground">{c.name}</p>

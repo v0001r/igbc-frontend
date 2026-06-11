@@ -26,17 +26,17 @@ export const UpcomingEvents = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.3 }}
     >
-      <h2 className="mb-4 text-lg font-semibold text-foreground">Upcoming Events</h2>
+      <h2 className="glass-section-title">Upcoming Events</h2>
       <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
         {events.length === 0 && (
-          <div className="min-w-[260px] shrink-0 rounded-2xl bg-card p-5 text-sm text-muted-foreground shadow-card">
+          <div className="glass-card min-w-[260px] shrink-0 p-5 text-sm text-muted-foreground">
             No upcoming events available.
           </div>
         )}
         {events.map((event, i) => (
           <div
             key={event.id ?? i}
-            className="min-w-[260px] shrink-0 rounded-2xl bg-card p-5 shadow-card"
+            className="glass-card glass-card-interactive min-w-[260px] shrink-0 p-5"
           >
             <div className="mb-3 flex items-center gap-2 text-xs font-medium text-primary">
               <CalendarDays className="h-3.5 w-3.5" strokeWidth={1.5} />

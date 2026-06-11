@@ -22,6 +22,17 @@ export type CertificationWorkspaceResponse = {
   annexureRoutes: AnnexureBladeRoute[];
   fieldRules: Record<string, FieldRuleSet>;
   annexureSchemas?: Record<string, AnnexureSchemaDefinition>;
+  isSubmitted?: boolean;
+  workflowStatus?: string;
+  readOnly?: boolean;
+  canFinalSubmit?: boolean;
+  completion?: {
+    complete: boolean;
+    missingCount: number;
+    missing: Array<{ tab: string; subtab: string; field: string }>;
+  };
+  assignedStaff?: { id: string; displayName: string; assignedAt?: string } | null;
+  assignedTpa?: { id: string; displayName: string; assignedAt?: string } | null;
 };
 
 export async function fetchCertificationWorkspace(

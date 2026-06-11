@@ -13,12 +13,7 @@ interface AdminLayoutProps {
 
 const AdminLayout = ({ children, activeItem, onNavigate, collapsed, onToggle, title }: AdminLayoutProps) => {
   return (
-    <div
-      className="min-h-screen"
-      style={{
-        background: "linear-gradient(145deg, #F6FBF9 0%, #EEF7F4 100%)",
-      }}
-    >
+    <div className="page-gradient-bg min-h-screen">
       <AdminSidebar activeItem={activeItem} onNavigate={onNavigate} collapsed={collapsed} onToggle={onToggle} />
       <div
         className="transition-all duration-300"

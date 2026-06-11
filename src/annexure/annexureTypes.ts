@@ -21,7 +21,129 @@ export type AnnexureRenderMode =
   | "wasteManagement"
   | "waterBalance"
   | "wastewaterReuse"
+  | "urbanHeatRoof"
+  | "urbanHeatNonRoof"
+  | "existingRainfall"
+  | "existingWaterEfficiency"
+  | "existingWaterConsumption"
+  | "existingAlternativePerformance"
+  | "eemr2Office"
+  | "epiCalculation"
+  | "epiLimitCalculation"
+  | "existingSimulationMethod"
+  | "existingOneSiteRenewable"
+  | "existingSingleZoneSystem"
+  | "existingOutdoorAirSystem"
   | "reference";
+
+export type ExistingSingleZoneAreaDescriptionDef = {
+  label: string;
+  outdoor_air_rate: number | null;
+  area_outdoor_rate: number;
+};
+
+export type ExistingSingleZoneLayoutDef = {
+  minRows?: number;
+  maxRows?: number;
+  addRowLabel?: string;
+  areaDescriptionOptions?: Record<string, ExistingSingleZoneAreaDescriptionDef>;
+};
+
+export type ExistingOneSiteRenewableLayoutDef = {
+  minRows?: number;
+  maxRows?: number;
+  addRowLabel?: string;
+};
+
+export type ExistingSimulationMethodLayoutDef = {
+  minHvacRows?: number;
+  maxHvacRows?: number;
+  minSimulationRows?: number;
+  maxSimulationRows?: number;
+};
+
+export type EpiLimitCalculationLayoutDef = {
+  minEnergyRows?: number;
+  maxEnergyRows?: number;
+};
+
+export type EpiCalculationLayoutDef = {
+  minEnergyRows?: number;
+  maxEnergyRows?: number;
+};
+
+export type Eemr2OfficeLayoutDef = {
+  minFloorRows?: number;
+  maxFloorRows?: number;
+  minEnergyRows?: number;
+  maxEnergyRows?: number;
+};
+
+export type ExistingAlternativePerformanceLayoutDef = {
+  addRowLabel?: string;
+  minRows?: number;
+  maxRows?: number;
+};
+
+export type ExistingWaterConsumptionLayoutDef = {
+  addBuildingLabel?: string;
+  defaultBuildingCount?: number;
+  minBuildings?: number;
+  maxBuildings?: number;
+  minRowsPerBuilding?: number;
+  maxRowsPerBuilding?: number;
+};
+
+export type ExistingWaterEfficiencyLockedRowDef = {
+  fixture_type: string;
+  fixture_detail: string;
+  duration: string;
+  daily_uses: string;
+  fte: string;
+  baseline_flow: string;
+  baseline_flow_proposed: string;
+  readonlyFields?: string[];
+};
+
+export type ExistingWaterEfficiencyLayoutDef = {
+  addBuildingLabel?: string;
+  defaultBuildingCount?: number;
+  minBuildings?: number;
+  maxBuildings?: number;
+  minRowsPerBuilding?: number;
+  maxRowsPerBuilding?: number;
+  lockedRows?: ExistingWaterEfficiencyLockedRowDef[];
+  /** When false, added rows keep duration/daily uses/baseline flow editable (WC CR 1 Option 1). */
+  lockExtraRowCalcFields?: boolean;
+  showMandatoryRequirement?: boolean;
+  saveOverallsavedpercentage?: boolean;
+  saveAnnexMandatory?: boolean;
+  showBuildingIndexInHeader?: boolean;
+  dailyUsesHeader?: string;
+  flowRateHeader?: string;
+};
+
+export type ExistingRainfallLayoutDef = {
+  rainfallRowCount?: number;
+  surfaceRowCount?: number;
+  yearOptions?: Record<string, string>;
+  monthOptions?: Record<string, string>;
+  surfaceOptions?: Record<string, string>;
+};
+
+export type UrbanHeatRoofLayoutDef = Record<string, never>;
+
+export type UrbanHeatNonRoofLayoutDef = {
+  minRows?: number;
+  maxRows?: number;
+  table1TabLabel?: string;
+  table2TabLabel?: string;
+  totalNonSource?: {
+    tab: string;
+    subtab: string;
+    param: string;
+  };
+};
 
 export type AnnexureDwellingFieldDef = {
   param: string;
@@ -56,9 +178,18 @@ export type AnnexureDwellingRowTableFooterRowDef = {
   cells: AnnexureDwellingRowTableFooterCellDef[];
 };
 
+export type AnnexureDwellingOrientationColumnGroupDef = {
+  label: string;
+  params: string[];
+};
+
 export type AnnexureDwellingLayoutDef = {
   /** `sections` = energy annex field blocks; `rowTable` = wide row grid per dwelling unit. */
   layoutMode?: "sections" | "rowTable";
+  /** `fte` = building-name header row + grouped transient columns (existing buildings FTE annex). */
+  rowTableHeaderStyle?: "default" | "fte";
+  towerNameLabel?: string;
+  orientationColumnGroups?: AnnexureDwellingOrientationColumnGroupDef[];
   addTowerLabel?: string;
   addRowLabel?: string;
   defaultTowerCount?: number;
@@ -506,6 +637,20 @@ export type AnnexureSchemaDefinition = {
   wasteManagementLayout?: WasteManagementLayoutDef;
   waterBalanceLayout?: AnnexureWaterBalanceLayoutDef;
   wastewaterReuseLayout?: AnnexureWastewaterReuseLayoutDef;
+  urbanHeatRoofLayout?: UrbanHeatRoofLayoutDef;
+  urbanHeatNonRoofLayout?: UrbanHeatNonRoofLayoutDef;
+  existingRainfallLayout?: ExistingRainfallLayoutDef;
+  existingWaterEfficiencyLayout?: ExistingWaterEfficiencyLayoutDef;
+  existingWaterConsumptionLayout?: ExistingWaterConsumptionLayoutDef;
+  existingAlternativePerformanceLayout?: ExistingAlternativePerformanceLayoutDef;
+  eemr2OfficeLayout?: Eemr2OfficeLayoutDef;
+  epiCalculationLayout?: EpiCalculationLayoutDef;
+  epiLimitCalculationLayout?: EpiLimitCalculationLayoutDef;
+  existingSimulationMethodLayout?: ExistingSimulationMethodLayoutDef;
+  existingOneSiteRenewableLayout?: ExistingOneSiteRenewableLayoutDef;
+  existingSingleZoneLayout?: ExistingSingleZoneLayoutDef;
+  existingOutdoorAirSystemLayout?: ExistingSingleZoneLayoutDef;
+  ventilationRatesCatalogPath?: string;
   table?: AnnexureTableDef;
   footerRows?: AnnexureFooterRowDef[];
   summary?: AnnexureSummaryRowDef[];

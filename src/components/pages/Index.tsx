@@ -9,15 +9,17 @@ import { UpcomingEvents } from "@/components/dashboard/UpcomingEvents";
 const Index = () => {
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <WelcomeHeader />
+      <div className="space-y-8">
+        <section className="glass-section">
+          <WelcomeHeader />
+        </section>
+
         <QuickActions />
 
-        {/* Recent Activity + Membership side by side */}
-        <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+        <section className="glass-section grid gap-6 lg:grid-cols-[1fr_340px]">
           <RecentActivity />
           <MembershipCard />
-        </div>
+        </section>
 
         <SupportSection />
         <UpcomingEvents />

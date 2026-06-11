@@ -9,7 +9,7 @@ export const WelcomeHeader = () => {
       className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between"
     >
       <div className="flex items-center gap-4">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-xl font-bold text-primary-foreground">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-ocean text-xl font-bold text-primary-foreground shadow-premium">
           D
         </div>
         <div>
@@ -40,7 +40,7 @@ const StatusCard = ({
   icon?: React.ReactNode;
   dot?: boolean;
 }) => (
-  <div className="flex min-w-[140px] flex-col gap-1 rounded-xl bg-card px-4 py-3 shadow-card">
+  <div className="glass-card glass-card-interactive flex min-w-[140px] flex-col gap-1 px-4 py-3">
     <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
       {label}
     </span>

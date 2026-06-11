@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { AnnexureRendererHandle } from "@/annexure/components/AnnexureRenderer";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { CertificationChecklistView } from "@/components/greenHomes/CertificationChecklistView";
@@ -31,11 +31,21 @@ import { getFieldsHiddenByRules, getRulesForSection } from "@/lib/fieldRules";
 import { fieldsControlledBy, isControlChecked, isFieldVisible } from "@/lib/fieldVisibility";
 import { createFieldValueContext, resolveFieldValue, shouldPersistField } from "@/lib/ratingFieldValue";
 import { RatingDataIndex } from "@/lib/ratingDataIndex";
+import { finalSubmitProject } from "@/lib/certificationWorkflow";
 import { ChevronLeft, FileBadge, Loader2 } from "lucide-react";
+import { ProjectWorkflowTimeline } from "@/components/greenHomes/ProjectWorkflowTimeline";
 
 type Props = {
   projectId: string;
+  forceReadOnly?: boolean;
+  /** When true, renders inside portal layout without client DashboardLayout wrapper. */
+  embedded?: boolean;
 };
+
+function WorkspaceShell({ embedded, children }: { embedded?: boolean; children: ReactNode }) {
+  if (embedded) return <>{children}</>;
+  return <DashboardLayout>{children}</DashboardLayout>;
+}
 
 function initialTabSubtab(config: GreenHomesRuntimeConfig): { tab: string; sub: string } {
   const tabs = Array.isArray(config.tabs) ? config.tabs : [];
@@ -44,7 +54,11 @@ function initialTabSubtab(config: GreenHomesRuntimeConfig): { tab: string; sub: 
   return { tab, sub };
 }
 
-export function GreenHomesProjectWorkspace({ projectId }: Props) {
+export function GreenHomesProjectWorkspace({
+  projectId,
+  forceReadOnly = false,
+  embedded = false,
+}: Props) {
   const [workspace, setWorkspace] = useState<CertificationWorkspaceResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,7 +69,12 @@ export function GreenHomesProjectWorkspace({ projectId }: Props) {
   const [pendingFiles, setPendingFiles] = useState<Record<string, File[]>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const annexSaveRef = useRef<AnnexureRendererHandle | null>(null);
+
+  const readOnly = forceReadOnly || workspace?.readOnly === true;
 
   const config = workspace?.config;
   const formState = workspace?.form ?? null;
@@ -126,6 +145,9 @@ export function GreenHomesProjectWorkspace({ projectId }: Props) {
     if (!config || !formState || !workspace) return null;
     return buildCertificationChecklist(config, formState, workspace.ratingTypeId);
   }, [config, formState, workspace]);
+
+  const canShowFinalSubmit =
+    !readOnly && workspace?.canFinalSubmit !== false && !workspace?.isSubmitted;
 
   const currentSubtabMeta = useMemo(
     () => subtabs.find((s) => s.sub_slug === currentSubtab),
@@ -264,8 +286,22 @@ export function GreenHomesProjectWorkspace({ projectId }: Props) {
     setCurrentSubtab(subSlug);
   }, []);
 
+  const handleFinalSubmit = useCallback(async () => {
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      await finalSubmitProject(projectId);
+      setShowSubmitConfirm(false);
+      await loadWorkspace();
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : "Final submit failed");
+    } finally {
+      setSubmitting(false);
+    }
+  }, [projectId, loadWorkspace]);
+
   const persistForm = useCallback(async () => {
-    if (!formState) return;
+    if (!formState || readOnly) return;
     setSaving(true);
     try {
       const saveValues = { ...sectionValues, ...localValues };
@@ -321,6 +357,7 @@ export function GreenHomesProjectWorkspace({ projectId }: Props) {
     localValues,
     formState,
     setFormState,
+    readOnly,
   ]);
 
   const canGoPrevious = useMemo(() => {
@@ -364,27 +401,27 @@ export function GreenHomesProjectWorkspace({ projectId }: Props) {
 
   if (loading) {
     return (
-      <DashboardLayout>
+      <WorkspaceShell embedded={embedded}>
         <div className="flex min-h-[40vh] items-center justify-center gap-2 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin text-ocean" />
           Loading certification workspace…
         </div>
-      </DashboardLayout>
+      </WorkspaceShell>
     );
   }
 
   if (loadError || !workspace || !config || !formState) {
     return (
-      <DashboardLayout>
+      <WorkspaceShell embedded={embedded}>
         <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
           {loadError ?? "Could not load certification workspace"}
         </div>
-      </DashboardLayout>
+      </WorkspaceShell>
     );
   }
 
   return (
-    <DashboardLayout>
+    <WorkspaceShell embedded={embedded}>
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
         <CertificationLeftNav
           config={config}
@@ -396,7 +433,40 @@ export function GreenHomesProjectWorkspace({ projectId }: Props) {
         />
 
         <div className="min-w-0 flex-1">
-          {view === "overview" ? <CertificationOverview workspace={workspace} /> : null}
+          {canShowFinalSubmit ? (
+            <div className="mb-4 rounded-xl border border-primary/25 bg-primary/5 px-4 py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">Final Submission</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Submit your certification package when you are ready. After submission, the project becomes read-only.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowSubmitConfirm(true)}
+                  className="shrink-0 rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:opacity-90"
+                >
+                  Final Submit
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {workspace.isSubmitted ? (
+            <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
+              This project has been final submitted and is read-only.
+            </div>
+          ) : null}
+
+          {view === "overview" ? (
+            <>
+              <CertificationOverview projectId={projectId} workspace={workspace} />
+              <div className="mt-4">
+                <ProjectWorkflowTimeline projectId={projectId} />
+              </div>
+            </>
+          ) : null}
 
           {view === "checklist" && checklistSummary ? (
             <CertificationChecklistView
@@ -444,33 +514,70 @@ export function GreenHomesProjectWorkspace({ projectId }: Props) {
                   onChange={onFieldChange}
                   onFilesChange={onFilesChange}
                   annexSaveRef={annexSaveRef}
+                  readOnly={readOnly}
                 />
               ) : null}
 
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
-                <button
-                  type="button"
-                  disabled={!canGoPrevious}
-                  onClick={goToPrevious}
-                  className="flex items-center gap-1.5 rounded-lg border-2 border-ocean bg-transparent px-5 py-2.5 text-sm font-semibold text-ocean transition-colors hover:bg-ocean/10 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Previous
-                </button>
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => void saveAndContinue()}
-                  className="rounded-lg bg-ocean px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-ocean-hover disabled:opacity-50"
-                >
-                  {saving ? "Saving…" : "Save & Continue →"}
-                </button>
-              </div>
+              {!readOnly ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+                  <button
+                    type="button"
+                    disabled={!canGoPrevious}
+                    onClick={goToPrevious}
+                    className="flex items-center gap-1.5 rounded-lg border-2 border-ocean bg-transparent px-5 py-2.5 text-sm font-semibold text-ocean transition-colors hover:bg-ocean/10 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => void saveAndContinue()}
+                    className="rounded-lg bg-ocean px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-ocean-hover disabled:opacity-50"
+                  >
+                    {saving ? "Saving…" : "Save & Continue →"}
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : null}
+
         </div>
       </div>
-    </DashboardLayout>
+
+      {showSubmitConfirm ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl border bg-card p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-foreground">Final Submission</h3>
+            <p className="mt-3 text-sm text-muted-foreground">
+              After final submission, you will not be able to modify project information, config forms,
+              annexures, uploads, or certification data.
+            </p>
+            {submitError ? (
+              <p className="mt-3 text-sm text-destructive">{submitError}</p>
+            ) : null}
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                className="rounded-lg border px-4 py-2 text-sm"
+                onClick={() => setShowSubmitConfirm(false)}
+                disabled={submitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+                onClick={() => void handleFinalSubmit()}
+                disabled={submitting}
+              >
+                {submitting ? "Submitting…" : "Submit"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </WorkspaceShell>
   );
 }
 

@@ -31,7 +31,7 @@ const periods = ["7D", "30D", "90D", "1Y"] as const;
 const ChartCard = ({ title, children }: { title: string; children: React.ReactNode }) => {
   const [period, setPeriod] = useState<string>("30D");
   return (
-    <div className="kpi-card">
+    <div className="kpi-card animate-fade-in">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-xs font-semibold text-foreground">{title}</h3>
         <div className="flex gap-0.5">
@@ -58,7 +58,7 @@ const ChartCard = ({ title, children }: { title: string; children: React.ReactNo
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg border border-border bg-card px-3 py-2 shadow-md">
+    <div className="glass-panel rounded-xl px-3 py-2">
       <p className="text-[10px] font-medium text-foreground mb-1">{label}</p>
       {payload.map((p: any, i: number) => (
         <p key={i} className="text-[10px]" style={{ color: p.color }}>
@@ -78,14 +78,28 @@ const DashboardCharts = () => {
       <ChartCard title="Projects Status">
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={projectStatusData} barSize={12}>
+            <defs>
+              <linearGradient id="pendingGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="hsl(38, 92%, 58%)" stopOpacity={0.95} />
+                <stop offset="100%" stopColor="hsl(38, 92%, 50%)" stopOpacity={0.7} />
+              </linearGradient>
+              <linearGradient id="approvedGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="hsl(142, 64%, 42%)" stopOpacity={0.95} />
+                <stop offset="100%" stopColor="hsl(142, 64%, 34%)" stopOpacity={0.75} />
+              </linearGradient>
+              <linearGradient id="rejectedGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="hsl(0, 72%, 58%)" stopOpacity={0.9} />
+                <stop offset="100%" stopColor="hsl(0, 72%, 51%)" stopOpacity={0.65} />
+              </linearGradient>
+            </defs>
             <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
             <XAxis dataKey="name" tick={tickStyle} stroke={gridStroke} />
             <YAxis tick={tickStyle} stroke={gridStroke} />
             <Tooltip content={<CustomTooltip />} />
             <Legend iconSize={8} wrapperStyle={{ fontSize: 10 }} />
-            <Bar dataKey="Pending" fill="hsl(38, 92%, 50%)" radius={[2, 2, 0, 0]} />
-            <Bar dataKey="Approved" fill="hsl(var(--primary))" radius={[2, 2, 0, 0]} />
-            <Bar dataKey="Rejected" fill="hsl(0, 72%, 51%)" radius={[2, 2, 0, 0]} />
+            <Bar dataKey="Pending" fill="url(#pendingGrad)" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="Approved" fill="url(#approvedGrad)" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="Rejected" fill="url(#rejectedGrad)" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>
@@ -111,11 +125,17 @@ const DashboardCharts = () => {
       <ChartCard title="Membership Growth">
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={membershipData} barSize={16}>
+            <defs>
+              <linearGradient id="membersGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="hsl(152, 55%, 48%)" stopOpacity={0.95} />
+                <stop offset="100%" stopColor="hsl(152, 55%, 38%)" stopOpacity={0.7} />
+              </linearGradient>
+            </defs>
             <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
             <XAxis dataKey="name" tick={tickStyle} stroke={gridStroke} />
             <YAxis tick={tickStyle} stroke={gridStroke} />
             <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="members" fill="hsl(152, 55%, 42%)" radius={[2, 2, 0, 0]} />
+            <Bar dataKey="members" fill="url(#membersGrad)" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </ChartCard>

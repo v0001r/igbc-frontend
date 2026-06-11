@@ -66,12 +66,18 @@ const sections: MenuSection[] = [
     ],
   },
   {
+    key: "user-management",
+    label: "User Management",
+    children: [
+      { icon: Building2, label: "IGBC Staff", key: "users-staff" },
+      { icon: Users, label: "TPA", key: "users-tpa" },
+    ],
+  },
+  {
     key: "users-events",
     label: "Users & Events",
     children: [
-      { icon: Users, label: "Users", key: "users" },
       { icon: CalendarDays, label: "Events", key: "events" },
-      { icon: Building2, label: "IGBC Staff", key: "igbc-staff" },
       { icon: Ticket, label: "Event Registrations", key: "event-registrations" },
     ],
   },
@@ -94,6 +100,7 @@ const AdminSidebar = ({ activeItem, onNavigate, collapsed, onToggle }: AdminSide
     "membership-offers": true,
     "ap-module": true,
     projects: true,
+    "user-management": true,
     "users-events": true,
     "settings-utility": true,
   });

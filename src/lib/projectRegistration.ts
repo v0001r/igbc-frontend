@@ -240,8 +240,27 @@ export type ProjectCertificationApplicationSummary = {
   paymentRemarks?: string | null;
   currentStep?: number;
   certificationType?: number | null;
+  certificationTypeLabel?: string | null;
   certificationFee?: number;
   finalPayableAmount?: number;
+  paymentMethod?: "online" | "offline" | null;
+  paymentType?: string | null;
+  transactionReference?: string | null;
+  ifscCode?: string | null;
+  bankName?: string | null;
+  branch?: string | null;
+  paymentAmount?: number | null;
+  paymentDate?: string | null;
+  organizationName?: string | null;
+  address?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  siteAreaSqm?: number;
+  siteAreaSqft?: number;
+  numberOfBuildings?: number;
+  totalBuiltUpAreaSqm?: number;
+  totalBuiltUpAreaSqft?: number;
 };
 
 export type ProjectFullDetailsResponse = {
@@ -256,6 +275,7 @@ export type ProjectFullDetailsResponse = {
   finalPayableAmount?: number;
   rejectRemark?: string | null;
   certificateAppliedStatus?: string | boolean;
+  categoryName?: string | null;
   certificationApplication?: ProjectCertificationApplicationSummary | null;
   canReapplyCertification?: boolean;
   isCertificationWorkspaceReady?: boolean;

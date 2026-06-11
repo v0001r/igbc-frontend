@@ -16,14 +16,38 @@
   font-weight: 600;
 }
 
+.glass-panel {
+  @apply rounded-2xl transition-all duration-300 ease-in-out;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 8px 32px rgba(59, 130, 246, 0.06);
+}
+.glass-panel:hover {
+  box-shadow: 0 12px 40px rgba(59, 130, 246, 0.1);
+}
+
 .kpi-card {
-  @apply rounded-xl border p-5 transition-all duration-300;
-  background: hsl(var(--card));
-  border-color: hsl(var(--border));
-  box-shadow: 0 1px 3px hsl(0 0% 0% / 0.04);
+  @apply rounded-2xl p-5 transition-all duration-300;
+  background: var(--glass-bg, rgba(255, 255, 255, 0.72));
+  backdrop-filter: blur(var(--glass-blur, 20px));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px));
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.9));
+  box-shadow: var(--glass-shadow, 0 8px 32px rgba(31, 142, 72, 0.06));
 }
 .kpi-card:hover {
-  box-shadow: 0 4px 12px hsl(0 0% 0% / 0.06);
+  box-shadow: var(--glass-shadow-hover, 0 16px 48px rgba(31, 142, 72, 0.12));
+  transform: translateY(-2px);
+}
+
+.table-card {
+  @apply rounded-2xl border p-0;
+  background: var(--glass-bg, rgba(255, 255, 255, 0.72));
+  backdrop-filter: blur(var(--glass-blur, 20px));
+  -webkit-backdrop-filter: blur(var(--glass-blur, 20px));
+  border-color: var(--glass-border, rgba(255, 255, 255, 0.9));
+  box-shadow: var(--glass-shadow, 0 8px 32px rgba(31, 142, 72, 0.06));
 }
 
 .data-table {
@@ -34,8 +58,10 @@
   @apply px-4 py-3 text-left font-semibold uppercase tracking-wider;
   font-size: 10.5px;
   color: hsl(var(--muted-foreground));
-  background: hsl(var(--muted));
-  border-bottom: 1px solid hsl(var(--border));
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--glass-highlight, hsl(var(--border)));
 }
 .data-table tbody td {
   @apply px-4 py-3;
@@ -49,7 +75,7 @@
   background: hsl(210 20% 98.5%);
 }
 .data-table tbody tr:hover {
-  background: transparent;
+  background: hsl(var(--muted) / 0.45);
 }
 
 .status-badge {
@@ -78,10 +104,12 @@
 }
 
 .filter-input {
-  @apply rounded-lg border px-3 py-1.5 transition-all duration-200;
+  @apply rounded-xl border px-3 py-1.5 transition-all duration-300;
   font-size: 12px;
-  border-color: hsl(var(--border));
-  background: hsl(var(--card));
+  border-color: var(--glass-highlight, hsl(var(--border)));
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 .filter-input:focus {
   outline: none;

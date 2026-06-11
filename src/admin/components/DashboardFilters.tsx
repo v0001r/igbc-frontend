@@ -69,7 +69,7 @@ const DashboardFilters = ({ onFilterChange }: DashboardFiltersProps) => {
             <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
           </button>
           {showDateDropdown && (
-            <div className="absolute top-full mt-1 right-0 z-50 min-w-[160px] rounded-lg border border-border bg-card shadow-lg py-1">
+            <div className="glass-panel absolute right-0 top-full z-50 mt-1 min-w-[160px] py-1">
               {dateRanges.map((range) => (
                 <button
                   key={range}
@@ -94,7 +94,7 @@ const DashboardFilters = ({ onFilterChange }: DashboardFiltersProps) => {
             <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
           </button>
           {showCategoryDropdown && (
-            <div className="absolute top-full mt-1 right-0 z-50 min-w-[160px] rounded-lg border border-border bg-card shadow-lg py-1">
+            <div className="glass-panel absolute right-0 top-full z-50 mt-1 min-w-[160px] py-1">
               {categories.map((cat) => (
                 <button
                   key={cat}

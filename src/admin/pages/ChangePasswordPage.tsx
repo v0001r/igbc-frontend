@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Lock, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { changePassword } from "@/lib/auth";
+import { toast } from "../components/ui/use-toast";
 
 const ChangePasswordPage = () => {
   const [form, setForm] = useState({ current: "", newPass: "", confirm: "" });
@@ -17,6 +19,25 @@ const ChangePasswordPage = () => {
 
   const strength = passwordStrength(form.newPass);
   const mismatch = form.confirm && form.newPass !== form.confirm;
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!form.current || !form.newPass || mismatch) return;
+    setSaving(true);
+    try {
+      await changePassword({ currentPassword: form.current, newPassword: form.newPass });
+      toast({ title: "Password updated successfully" });
+      setForm({ current: "", newPass: "", confirm: "" });
+    } catch (err) {
+      toast({
+        title: "Unable to change password",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="max-w-md mx-auto space-y-6">
@@ -76,8 +97,13 @@ const ChangePasswordPage = () => {
           </div>
         ))}
 
-        <Button size="sm" className="w-full gap-1.5 text-xs" disabled={!form.current || !form.newPass || mismatch}>
-          <Lock className="w-3.5 h-3.5" /> Update Password
+        <Button
+          size="sm"
+          className="w-full gap-1.5 text-xs"
+          disabled={!form.current || !form.newPass || mismatch || saving}
+          onClick={() => void handleSubmit()}
+        >
+          <Lock className="w-3.5 h-3.5" /> {saving ? "Updating…" : "Update Password"}
         </Button>
       </div>
     </div>

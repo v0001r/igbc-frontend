@@ -79,8 +79,8 @@ export const QuickActions = () => {
   }, [hasApExamRegistration]);
 
   return (
-    <section className="mb-10">
-      <h2 className="mb-4 text-lg font-semibold text-foreground">Quick Actions</h2>
+    <section className="glass-section mb-10">
+      <h2 className="glass-section-title">Quick Actions</h2>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
         {actions.map((action, i) => (
           <motion.div
@@ -92,7 +92,7 @@ export const QuickActions = () => {
           >
             <Link
               to={action.path}
-              className="group flex h-full flex-col items-start rounded-2xl bg-card p-5 text-left shadow-card transition-shadow hover:shadow-card-hover"
+              className="glass-card glass-card-interactive group flex h-full flex-col items-start p-5 text-left"
             >
               <action.icon
                 className={`mb-3 h-6 w-6 ${action.color} transition-transform group-hover:scale-110`}

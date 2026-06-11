@@ -17,6 +17,7 @@ type Props = {
   errors: Record<string, string>;
   onChange: (name: string, value: string) => void;
   onFilesChange?: (name: string, files: File[]) => void;
+  readOnly?: boolean;
 };
 
 function fieldColumnClass(type: string): string {
@@ -49,6 +50,7 @@ export function DynamicForm({
   errors,
   onChange,
   onFilesChange,
+  readOnly = false,
 }: Props) {
   const supported = fields.filter((f) => isSupportedFieldType(f.type ?? ""));
   const sectionValues = useMemo(
@@ -90,11 +92,11 @@ export function DynamicForm({
                 <DynamicField
                   field={field}
                   value={displayValue}
-                  readonly={resolved.readonly || isFieldReadonlyByRules(name, rulesEvaluation)}
+                  readonly={readOnly || resolved.readonly || isFieldReadonlyByRules(name, rulesEvaluation)}
                   required={fieldIsRequiredWhenVisible(field, sectionValues)}
                   error={errors[name]}
-                  onChange={onChange}
-                  onFilesChange={onFilesChange}
+                  onChange={readOnly ? () => undefined : onChange}
+                  onFilesChange={readOnly ? undefined : onFilesChange}
                 />
               </div>
             );

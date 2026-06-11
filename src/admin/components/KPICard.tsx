@@ -44,7 +44,7 @@ const KPICard = ({ title, value, change, icon: Icon, color, sparkData }: KPICard
   const isPositive = change >= 0;
 
   return (
-    <div className="kpi-card group">
+    <div className="kpi-card group cursor-default">
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{title}</p>
@@ -62,7 +62,7 @@ const KPICard = ({ title, value, change, icon: Icon, color, sparkData }: KPICard
           </div>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <div className={`w-9 h-9 rounded-lg ${colors.bg} flex items-center justify-center`}>
+          <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${colors.bg} ring-1 ring-white/60`}>
             <Icon className={`w-4.5 h-4.5 ${colors.icon}`} />
           </div>
           <MiniSparkline data={sparkData || defaultSpark} color={sparkColors[color]} />

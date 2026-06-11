@@ -11,7 +11,7 @@ export const MembershipCard = () => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.15 }}
-      className="flex flex-col rounded-xl border border-border bg-card p-5 shadow-card"
+      className="glass-card glass-card-interactive flex flex-col p-5"
     >
       <div className="mb-4 flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-muted">

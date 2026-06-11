@@ -28,10 +28,7 @@ const AdminHeader = ({ title, onNavigate }: AdminHeaderProps) => {
   }, []);
 
   return (
-    <header
-      className="h-12 bg-card/90 backdrop-blur-md border-b border-border flex items-center justify-between px-5 sticky top-0 z-40"
-      style={{ boxShadow: "0 1px 2px hsl(0 0% 0% / 0.03)" }}
-    >
+    <header className="glass-header sticky top-0 z-40 flex h-12 items-center justify-between px-5">
       <div className="relative hidden md:block">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
         <input
@@ -62,7 +59,7 @@ const AdminHeader = ({ title, onNavigate }: AdminHeaderProps) => {
             <ChevronDown className="w-3 h-3 text-muted-foreground" />
           </button>
           {showUserMenu && (
-            <div className="absolute right-0 top-full mt-1 w-40 rounded-lg border border-border bg-card shadow-lg py-1 z-50">
+            <div className="glass-panel absolute right-0 top-full z-50 mt-1 w-40 py-1">
               {[
                 { label: "Profile", key: "profile" },
                 { label: "Change Password", key: "change-password" },

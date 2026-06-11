@@ -34,7 +34,7 @@ export const RecentActivity = () => {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.2 }}
-      className="flex flex-col rounded-2xl bg-card p-6 shadow-card"
+      className="glass-card flex flex-col p-6"
     >
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-base font-semibold text-foreground">Recent Activity</h3>
@@ -45,7 +45,7 @@ export const RecentActivity = () => {
 
       <div className="space-y-4">
         {activities.map((item, i) => (
-          <div key={i} className="flex items-start gap-3">
+          <div key={i} className="flex items-start gap-3 rounded-xl p-2 transition-colors duration-300 hover:bg-white/40">
             <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${item.color}`}>
               <item.icon className="h-4 w-4" strokeWidth={1.5} />
             </div>
