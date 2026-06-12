@@ -27,7 +27,10 @@ export function setProjectRegistrationFeeConfig(masters: ProjectRegistrationFeeM
 
   feeRules = Object.entries(feesByRatingSystem).map(([ratingSystem, feeData]) => ({
     ratingSystem,
-    registrationFee: toNumber(feeData.registrationFee ?? feeData.fee, 0),
+    registrationFee: toNumber(
+      feeData.registrationFee ?? feeData.fee ?? (feeData as { nonMember?: number }).nonMember,
+      0,
+    ),
     gstPercent: toNumber(feeData.gstPercent, 18),
     compatibleConstructionTypes: compatibilityMap[ratingSystem] ?? [],
   }));

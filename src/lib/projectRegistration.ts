@@ -538,7 +538,7 @@ const BASE = "/project-registrations";
 const PROJECT_MASTERS_BASE = "/project-masters";
 
 export async function getProjectRegistrationFeeMasters() {
-  return request<ProjectRegistrationFeeMasters>(`${BASE}/masters/fees`, {
+  return request<ProjectRegistrationFeeMasters>("/projects/masters/fees", {
     method: "GET",
     headers: authHeaders(),
   });

@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Leaf,
+  ScrollText,
 } from "lucide-react";
 
 interface SubItem {
@@ -84,7 +85,10 @@ const sections: MenuSection[] = [
   {
     key: "settings-utility",
     label: "Settings / Utility",
-    children: [{ icon: Settings2, label: "Support/Assistance", key: "support-assistance" }],
+    children: [
+      { icon: ScrollText, label: "Audit Log", key: "audit-log" },
+      { icon: Settings2, label: "Support/Assistance", key: "support-assistance" },
+    ],
   },
 ];
 

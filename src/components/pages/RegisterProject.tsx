@@ -33,6 +33,17 @@ const steps = [
   { id: 5, title: "Payment", icon: CreditCard },
 ];
 
+function toFiniteNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
 const RegisterProject = () => {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
@@ -45,6 +56,7 @@ const RegisterProject = () => {
   const [saving, setSaving] = useState(false);
   const [pendingResumeStepOne, setPendingResumeStepOne] = useState<ProjectResumeStepOne | null>(null);
   const [resumeBaseRegistrationFee, setResumeBaseRegistrationFee] = useState<number | null>(null);
+  const [resumeFinalPayableAmount, setResumeFinalPayableAmount] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     category: "",
     constructionType: "",
@@ -227,9 +239,18 @@ const RegisterProject = () => {
         if (response.stepOne?.projectType) {
           update("projectType", response.stepOne.projectType);
         }
-        const stepOneRegistrationFee = (response.stepOne as Record<string, unknown> | undefined)?.registrationFee;
-        if (typeof stepOneRegistrationFee === "number" && Number.isFinite(stepOneRegistrationFee)) {
+        const stepOneRegistrationFee = toFiniteNumber(
+          (response.stepOne as Record<string, unknown> | undefined)?.registrationFee,
+        );
+        if (stepOneRegistrationFee !== null && stepOneRegistrationFee > 0) {
           setResumeBaseRegistrationFee(stepOneRegistrationFee);
+        }
+
+        const resumedFinalPayable = toFiniteNumber(
+          (response as Record<string, unknown>).finalPayableAmount,
+        );
+        if (resumedFinalPayable !== null && resumedFinalPayable > 0) {
+          setResumeFinalPayableAmount(resumedFinalPayable);
         }
 
         if (response.stepTwo) {
@@ -325,16 +346,16 @@ const RegisterProject = () => {
           update("isSez", rawStepFour.sezSelected === true ? "Yes" : rawStepFour.sezSelected === false ? "No" : "");
           update("deductTds", rawStepFour.tdsSelected === true ? "Yes" : rawStepFour.tdsSelected === false ? "No" : "");
           update("couponCode", String(rawStepFour.couponCode ?? ""));
-          const stepFourBaseFee = rawStepFour.baseRegistrationFee;
-          const stepFourRegistrationFee = rawStepFour.registrationFee;
           const candidateFee =
-            typeof stepFourBaseFee === "number" && Number.isFinite(stepFourBaseFee)
-              ? stepFourBaseFee
-              : typeof stepFourRegistrationFee === "number" && Number.isFinite(stepFourRegistrationFee)
-              ? stepFourRegistrationFee
-              : null;
-          if (candidateFee !== null) {
+            toFiniteNumber(rawStepFour.baseRegistrationFee) ??
+            toFiniteNumber(rawStepFour.registrationFee);
+          if (candidateFee !== null && candidateFee > 0) {
             setResumeBaseRegistrationFee(candidateFee);
+          }
+
+          const stepFourTotalPayable = toFiniteNumber(rawStepFour.totalPayable);
+          if (stepFourTotalPayable !== null && stepFourTotalPayable > 0) {
+            setResumeFinalPayableAmount(stepFourTotalPayable);
           }
         }
 
@@ -351,7 +372,10 @@ const RegisterProject = () => {
           update("ifscCode", String(rawStepFive.ifscCode ?? ""));
           update("bankName", String(rawStepFive.bankName ?? ""));
           update("bankBranch", String(rawStepFive.branch ?? ""));
-          update("paymentAmount", String(rawStepFive.amount ?? ""));
+          const resumedPaymentAmount = toFiniteNumber(rawStepFive.amount);
+          if (resumedPaymentAmount !== null && resumedPaymentAmount > 0) {
+            update("paymentAmount", String(resumedPaymentAmount));
+          }
           update("paymentDate", String(rawStepFive.paymentDate ?? ""));
           update("paymentRemarks", String(rawStepFive.remarks ?? ""));
         }
@@ -412,15 +436,27 @@ const RegisterProject = () => {
       !formData.constructionType ||
       selectedFeeRule.compatibleConstructionTypes.includes(formData.constructionType),
   );
+  const ratingSystemRegistrationFee = toFiniteNumber(selectedRatingSystem?.fees?.nonMember);
   const feePreview = calculateProjectRegistrationFee(selectedRatingLabel, {
     deductTds: formData.deductTds === "Yes",
     sezSelected: formData.isSez === "Yes",
   });
-  const registrationFee = resumeBaseRegistrationFee ?? feePreview.registrationFee;
+  const registrationFee =
+    (resumeBaseRegistrationFee !== null && resumeBaseRegistrationFee > 0
+      ? resumeBaseRegistrationFee
+      : null) ??
+    (ratingSystemRegistrationFee !== null && ratingSystemRegistrationFee > 0
+      ? ratingSystemRegistrationFee
+      : null) ??
+    feePreview.registrationFee;
   const gstPercent = feePreview.gstPercent ?? 18;
   const gstAmount = formData.isSez === "Yes" ? 0 : Number(((registrationFee * gstPercent) / 100).toFixed(2));
   const tdsAmount = formData.deductTds === "Yes" ? Number((registrationFee * 0.1).toFixed(2)) : 0;
   const totalPayable = Math.max(0, Number((registrationFee + gstAmount - tdsAmount).toFixed(2)));
+  const paymentPrefillAmount =
+    resumeFinalPayableAmount !== null && resumeFinalPayableAmount > 0
+      ? resumeFinalPayableAmount
+      : totalPayable;
 
   useEffect(() => {
     const categoryId = Number(formData.category);
@@ -434,7 +470,21 @@ const RegisterProject = () => {
     const loadRatingSystems = async () => {
       try {
         const response = await getProjectCategoryRatingSystems(categoryId);
-        setRatingSystems(response.ratingSystems ?? []);
+        const systems = response.ratingSystems ?? [];
+        setRatingSystems(systems);
+        if (systems.length > 0) {
+          setProjectRegistrationFeeConfig({
+            feesByRatingSystem: Object.fromEntries(
+              systems.map((item) => [
+                item.ratingName,
+                {
+                  registrationFee: item.fees?.nonMember ?? 0,
+                  gstPercent: 18,
+                },
+              ]),
+            ),
+          });
+        }
       } catch (error) {
         setRatingSystems([]);
         toast({
@@ -473,6 +523,15 @@ const RegisterProject = () => {
     }
     setPendingResumeStepOne(null);
   }, [pendingResumeStepOne, ratingSystems]);
+
+  useEffect(() => {
+    if (step !== 5 || formData.paymentAmount.trim()) {
+      return;
+    }
+    if (paymentPrefillAmount > 0) {
+      update("paymentAmount", String(paymentPrefillAmount));
+    }
+  }, [step, paymentPrefillAmount, formData.paymentAmount]);
 
   const ensureRegistration = async () => {
     if (registrationId) {
@@ -528,6 +587,13 @@ const RegisterProject = () => {
       }
       setRegistrationId(id);
       setTemporaryProjectId(upserted.temporaryProjectId ?? temporaryProjectId ?? `P00${id}`);
+      const savedRegistrationFee = toFiniteNumber(
+        (upserted as Record<string, unknown>).registrationFee ??
+          (upserted.stepOne as Record<string, unknown> | undefined)?.registrationFee,
+      );
+      if (savedRegistrationFee !== null && savedRegistrationFee > 0) {
+        setResumeBaseRegistrationFee(savedRegistrationFee);
+      }
       goTo(2);
     } catch (error) {
       toast({
@@ -633,7 +699,7 @@ const RegisterProject = () => {
     setSaving(true);
     try {
       const id = await ensureRegistration();
-      await updateProjectRegistrationInvoice(id, {
+      const invoiceResponse = await updateProjectRegistrationInvoice(id, {
         organizationName: formData.invoiceOrg.trim(),
         organizationAddress: formData.invoiceAddress.trim(),
         city: formData.invoiceCity.trim(),
@@ -647,6 +713,23 @@ const RegisterProject = () => {
         registrationFee,
         couponCode: formData.couponCode.trim() || undefined,
       });
+      const savedInvoice = (invoiceResponse as Record<string, unknown>).invoice as
+        | Record<string, unknown>
+        | undefined;
+      const savedRegistrationFee =
+        toFiniteNumber(invoiceResponse.registrationFee) ??
+        toFiniteNumber(savedInvoice?.registrationFee) ??
+        toFiniteNumber(savedInvoice?.baseRegistrationFee);
+      if (savedRegistrationFee !== null && savedRegistrationFee > 0) {
+        setResumeBaseRegistrationFee(savedRegistrationFee);
+      }
+      const savedTotalPayable =
+        toFiniteNumber(invoiceResponse.finalPayableAmount) ??
+        toFiniteNumber(savedInvoice?.totalPayable);
+      if (savedTotalPayable !== null && savedTotalPayable > 0) {
+        setResumeFinalPayableAmount(savedTotalPayable);
+        update("paymentAmount", String(savedTotalPayable));
+      }
       goTo(5);
     } catch (error) {
       toast({
@@ -1368,7 +1451,13 @@ const RegisterProject = () => {
                         <InputField label="Branch *" value={formData.bankBranch} onChange={(v) => update("bankBranch", v)} />
                       </div>
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <InputField label="Amount (₹) *" value={formData.paymentAmount} onChange={(v) => update("paymentAmount", v)} type="number" />
+                     
+                      <InputField
+    label="Amount (₹) *"
+    value={formData.paymentAmount}
+    onChange={(v) => update("paymentAmount", v)}
+    type="number"
+    disabled={true} readOnly />                      {/* <InputField label="Amount (₹) *" value={formData.paymentAmount} onChange={(v) => update("paymentAmount", v)} type="number" readOnly /> */}
                         <InputField label="Payment Date *" value={formData.paymentDate} onChange={(v) => update("paymentDate", v)} type="date" />
                       </div>
                       <InputField label="Remarks" value={formData.paymentRemarks} onChange={(v) => update("paymentRemarks", v)} placeholder="Any additional notes" />

@@ -12,6 +12,7 @@ import ProjectCertificationPage from "./ProjectCertificationPage";
 import ProfilePage from "./ProfilePage";
 import ChangePasswordPage from "./ChangePasswordPage";
 import UsersManagementPage from "./users/UsersManagementPage";
+import AuditLogPage from "./AuditLogPage";
 
 const pageTitles: Record<string, string> = {
   dashboard: "Dashboard",
@@ -24,6 +25,7 @@ const pageTitles: Record<string, string> = {
   "users-staff": "IGBC Staff", "users-tpa": "TPA Users",
   events: "Events", "events-create": "Create Event", "events-categories": "Event Categories",
   "support-assistance": "Support/Assistance",
+  "audit-log": "Audit Log",
   "igbc-staff": "IGBC Staff", "igbc-staff-add": "Add Staff", "igbc-staff-roles": "Staff Roles",
   "event-registrations": "Event Registrations", "event-registrations-pending": "Pending Registrations", "event-registrations-confirmed": "Confirmed Registrations",
   profile: "Admin Profile",
@@ -43,6 +45,7 @@ const adminPathByKey: Record<string, string> = {
   "users-tpa": "users/tpa",
   events: "events",
   "support-assistance": "support-assistance",
+  "audit-log": "audit-log",
   "igbc-staff": "igbc-staff",
   "event-registrations": "event-registrations",
   profile: "profile",
@@ -88,6 +91,7 @@ const Index = () => {
       case "events": return <EventsPage />;
       case "events-create": return <EventsPage />;
       case "support-assistance": return <SupportAssistancePage />;
+      case "audit-log": return <AuditLogPage />;
       case "project-registration": return <ProjectsPage />;
       case "project-certification": return <ProjectCertificationPage />;
       case "profile": return <ProfilePage />;
