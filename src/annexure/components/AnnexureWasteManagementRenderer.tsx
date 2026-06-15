@@ -48,6 +48,7 @@ export function AnnexureWasteManagementRenderer({
   const layout = schema.wasteManagementLayout!;
   const unitOptions = layout.unitOptions ?? { "": "Select Unit", kgs: "Weight (Kgs)", volume: "Volume (m³)" };
   const materialOptions = layout.materialOptions ?? { "": "Select" };
+  const materialReadonly = layout.materialReadonly ?? false;
 
   const sourceSignature = useMemo(
     () => JSON.stringify(loadMaterialSources(formState, schema)),
@@ -133,6 +134,7 @@ export function AnnexureWasteManagementRenderer({
                   row={row}
                   displayNo={idx + 1}
                   materialOptions={materialOptions}
+                  materialReadonly={materialReadonly}
                   onUpdate={(patch) =>
                     recalc((s) => ({
                       ...s,
@@ -173,11 +175,13 @@ function WasteRow({
   row,
   displayNo,
   materialOptions,
+  materialReadonly,
   onUpdate,
 }: {
   row: WasteManagementRow;
   displayNo: number;
   materialOptions: Record<string, string>;
+  materialReadonly: boolean;
   onUpdate: (patch: Partial<WasteManagementRow>) => void;
 }) {
   const selectValue = row.sub_category;
@@ -188,7 +192,7 @@ function WasteRow({
     const next = { ...row, ...patch };
     onUpdate({
       ...patch,
-      material_description: materialLabelFromSource(next),
+      material_description: materialLabelFromSource(next, materialOptions),
     });
   };
 
@@ -196,34 +200,42 @@ function WasteRow({
     <tr className="text-center">
       <td className="border border-border px-2 py-1 font-medium">{displayNo}</td>
       <td className="border border-border px-1 py-1 text-left">
-        <select
-          className={selectClass}
-          value={selectValue}
-          onChange={(e) =>
-            updateMaterial({
-              sub_category: e.target.value,
-              other_sub_catg: e.target.value === "Other" ? row.other_sub_catg : "",
-            })
-          }
-        >
-          <option value="">Select</option>
-          {Object.entries(materialOptions)
-            .filter(([key]) => key !== "")
-            .map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          {hasCustomValue ? <option value={selectValue}>{selectValue}</option> : null}
-        </select>
-        {showOtherSub ? (
-          <input
-            className={`${inputClass} mt-1`}
-            placeholder="Specify other"
-            value={row.other_sub_catg}
-            onChange={(e) => updateMaterial({ sub_category: row.sub_category, other_sub_catg: e.target.value })}
-          />
-        ) : null}
+        {materialReadonly ? (
+          <input readOnly className={readonlyClass} value={row.material_description} />
+        ) : (
+          <>
+            <select
+              className={selectClass}
+              value={selectValue}
+              onChange={(e) =>
+                updateMaterial({
+                  sub_category: e.target.value,
+                  other_sub_catg: e.target.value === "Other" ? row.other_sub_catg : "",
+                })
+              }
+            >
+              <option value="">Select</option>
+              {Object.entries(materialOptions)
+                .filter(([key]) => key !== "")
+                .map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              {hasCustomValue ? <option value={selectValue}>{selectValue}</option> : null}
+            </select>
+            {showOtherSub ? (
+              <input
+                className={`${inputClass} mt-1`}
+                placeholder="Specify other"
+                value={row.other_sub_catg}
+                onChange={(e) =>
+                  updateMaterial({ sub_category: row.sub_category, other_sub_catg: e.target.value })
+                }
+              />
+            ) : null}
+          </>
+        )}
       </td>
       <NumCell value={row.generated} onChange={(v) => onUpdate({ generated: v })} />
       <NumCell value={row.generated_proj} onChange={(v) => onUpdate({ generated_proj: v })} />

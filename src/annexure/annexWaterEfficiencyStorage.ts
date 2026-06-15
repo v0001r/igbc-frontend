@@ -1,5 +1,6 @@
 import {
   computeWaterEfficiencyAnnex,
+  presetFieldNames,
   type WaterEfficiencyAnnexState,
   type WaterEfficiencyDynamicRow,
 } from "@/annexure/annexWaterEfficiencyCalculations";
@@ -59,18 +60,18 @@ function getParam(
 function presetScalarParams(presets: WaterEfficiencyPresetDef[]): string[] {
   const out: string[] = [];
   for (const p of presets) {
+    const fields = presetFieldNames(p);
     out.push(p.detailParam);
-    const prefix = p.prefix;
     out.push(
-      `${prefix}_status`,
-      `${prefix}_duration`,
-      `${prefix}_daily`,
-      `${prefix}_occupancy`,
-      `${prefix}_base`,
-      `${prefix}_unit`,
-      `${prefix}_total_use`,
-      `${prefix}_proposed`,
-      `${prefix}_proposed_total`,
+      fields.status,
+      fields.duration,
+      fields.daily,
+      fields.occupancy,
+      fields.base,
+      fields.unit,
+      fields.totalUse,
+      fields.proposed,
+      fields.proposedTotal,
     );
   }
   return out;
@@ -112,20 +113,20 @@ export function hydrateWaterEfficiencyAnnex(
   const scalars: Record<string, string> = {};
 
   for (const p of presets) {
-    const prefix = p.prefix;
+    const fields = presetFieldNames(p);
     scalars[p.detailParam] = getParam(form, tab, subtab, p.detailParam) ?? "";
-    scalars[`${prefix}_status`] = getParam(form, tab, subtab, `${prefix}_status`) ?? "";
-    scalars[`${prefix}_duration`] =
-      getParam(form, tab, subtab, `${prefix}_duration`) ?? p.defaults.duration ?? "";
-    scalars[`${prefix}_daily`] = getParam(form, tab, subtab, `${prefix}_daily`) ?? p.defaults.daily ?? "";
-    scalars[`${prefix}_occupancy`] =
-      getParam(form, tab, subtab, `${prefix}_occupancy`) ?? occupancy;
-    scalars[`${prefix}_base`] = getParam(form, tab, subtab, `${prefix}_base`) ?? p.defaults.base ?? "";
-    scalars[`${prefix}_unit`] = getParam(form, tab, subtab, `${prefix}_unit`) ?? p.defaults.unit ?? "";
-    scalars[`${prefix}_total_use`] = getParam(form, tab, subtab, `${prefix}_total_use`) ?? "0";
-    scalars[`${prefix}_proposed`] = getParam(form, tab, subtab, `${prefix}_proposed`) ?? "";
-    scalars[`${prefix}_proposed_total`] =
-      getParam(form, tab, subtab, `${prefix}_proposed_total`) ?? "0";
+    scalars[fields.status] = getParam(form, tab, subtab, fields.status) ?? "";
+    scalars[fields.duration] =
+      getParam(form, tab, subtab, fields.duration) ?? p.defaults.duration ?? "";
+    scalars[fields.daily] = getParam(form, tab, subtab, fields.daily) ?? p.defaults.daily ?? "";
+    scalars[fields.occupancy] =
+      getParam(form, tab, subtab, fields.occupancy) ?? occupancy;
+    scalars[fields.base] = getParam(form, tab, subtab, fields.base) ?? p.defaults.base ?? "";
+    scalars[fields.unit] = getParam(form, tab, subtab, fields.unit) ?? p.defaults.unit ?? "";
+    scalars[fields.totalUse] = getParam(form, tab, subtab, fields.totalUse) ?? "0";
+    scalars[fields.proposed] = getParam(form, tab, subtab, fields.proposed) ?? "";
+    scalars[fields.proposedTotal] =
+      getParam(form, tab, subtab, fields.proposedTotal) ?? "0";
   }
 
   for (const key of SUMMARY_SCALAR_PARAMS) {
@@ -175,53 +176,21 @@ export function buildSavePayloadFromWaterEfficiency(
   const fields: { paramName: string; type: string; value: string }[] = [];
 
   for (const p of presets) {
-    const prefix = p.prefix;
+    const pf = presetFieldNames(p);
     fields.push({ paramName: p.detailParam, type: "t", value: state.scalars[p.detailParam] ?? "" });
-    fields.push({
-      paramName: `${prefix}_status`,
-      type: "t",
-      value: state.scalars[`${prefix}_status`] ?? "",
-    });
-    fields.push({
-      paramName: `${prefix}_duration`,
-      type: "t",
-      value: state.scalars[`${prefix}_duration`] ?? "",
-    });
-    fields.push({
-      paramName: `${prefix}_daily`,
-      type: "t",
-      value: state.scalars[`${prefix}_daily`] ?? "",
-    });
-    fields.push({
-      paramName: `${prefix}_occupancy`,
-      type: "t",
-      value: state.scalars[`${prefix}_occupancy`] ?? "",
-    });
-    fields.push({
-      paramName: `${prefix}_base`,
-      type: "t",
-      value: state.scalars[`${prefix}_base`] ?? "",
-    });
-    fields.push({
-      paramName: `${prefix}_unit`,
-      type: "t",
-      value: state.scalars[`${prefix}_unit`] ?? "",
-    });
-    fields.push({
-      paramName: `${prefix}_total_use`,
-      type: "t",
-      value: state.scalars[`${prefix}_total_use`] ?? "0",
-    });
-    fields.push({
-      paramName: `${prefix}_proposed`,
-      type: "t",
-      value: state.scalars[`${prefix}_proposed`] ?? "",
-    });
-    fields.push({
-      paramName: `${prefix}_proposed_total`,
-      type: "t",
-      value: state.scalars[`${prefix}_proposed_total`] ?? "0",
-    });
+    for (const param of [
+      pf.status,
+      pf.duration,
+      pf.daily,
+      pf.occupancy,
+      pf.base,
+      pf.unit,
+      pf.totalUse,
+      pf.proposed,
+      pf.proposedTotal,
+    ]) {
+      fields.push({ paramName: param, type: "t", value: state.scalars[param] ?? "" });
+    }
   }
 
   for (const param of DYNAMIC_ARRAY_PARAMS) {

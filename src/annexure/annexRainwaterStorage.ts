@@ -4,6 +4,7 @@ import type { RowRecord } from "@/annexure/annexureExprEval";
 
 export type RainfallRowState = {
   years: string;
+  other_years: string;
   peak_month: string;
   rainfall: string;
 };
@@ -51,6 +52,7 @@ export function hydrateRainwaterAnnex(
 ): RainwaterAnnexState {
   const fixed = schema.rainwaterLayout?.rainfall?.fixedRowCount ?? 5;
   const years = parseJsonArray(getParam(form, tab, subtab, "years"));
+  const otherYears = parseJsonArray(getParam(form, tab, subtab, "other_years"));
   const peakMonth = parseJsonArray(getParam(form, tab, subtab, "peak_month"));
   const rainfall = parseJsonArray(getParam(form, tab, subtab, "rainfall"));
 
@@ -58,6 +60,7 @@ export function hydrateRainwaterAnnex(
   for (let i = 0; i < fixed; i++) {
     rainfallRows.push({
       years: years[i] ?? "",
+      other_years: otherYears[i] ?? "",
       peak_month: peakMonth[i] ?? "",
       rainfall: rainfall[i] ?? "",
     });
@@ -111,6 +114,7 @@ export function buildSavePayloadFromRainwater(
   const fields: { paramName: string; type: string; value: string }[] = [
     { paramName: "location", type: "t", value: state.location },
     { paramName: "years", type: "t", value: JSON.stringify(state.rainfallRows.map((r) => r.years)) },
+    { paramName: "other_years", type: "t", value: JSON.stringify(state.rainfallRows.map((r) => r.other_years)) },
     { paramName: "peak_month", type: "t", value: JSON.stringify(state.rainfallRows.map((r) => r.peak_month)) },
     { paramName: "rainfall", type: "t", value: JSON.stringify(state.rainfallRows.map((r) => r.rainfall)) },
     { paramName: "average", type: "t", value: state.average },

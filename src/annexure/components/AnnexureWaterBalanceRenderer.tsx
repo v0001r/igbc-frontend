@@ -38,10 +38,12 @@ function BalanceSectionTable({
   section,
   scalars,
   onDailyChange,
+  onAnnualChange,
 }: {
   section: WaterBalanceSectionDef;
   scalars: WaterBalanceScalars;
   onDailyChange: (param: string, value: string) => void;
+  onAnnualChange: (param: string, value: string) => void;
 }) {
   return (
     <div className="overflow-x-auto rounded-md border border-border">
@@ -60,7 +62,13 @@ function BalanceSectionTable({
         </thead>
         <tbody>
           {section.rows.map((row) => (
-            <BalanceDataRow key={row.dailyParam} row={row} scalars={scalars} onDailyChange={onDailyChange} />
+            <BalanceDataRow
+              key={row.dailyParam}
+              row={row}
+              scalars={scalars}
+              onDailyChange={onDailyChange}
+              onAnnualChange={onAnnualChange}
+            />
           ))}
         </tbody>
         <tfoot>
@@ -83,12 +91,15 @@ function BalanceDataRow({
   row,
   scalars,
   onDailyChange,
+  onAnnualChange,
 }: {
   row: WaterBalanceRowDef;
   scalars: WaterBalanceScalars;
   onDailyChange: (param: string, value: string) => void;
+  onAnnualChange: (param: string, value: string) => void;
 }) {
   const readonlyDaily = row.editableDaily === false || Boolean(row.source);
+  const readonlyAnnual = !row.editableAnnual;
   return (
     <tr className="border-b border-border">
       <td className="border border-border px-3 py-2 text-left font-medium text-foreground">{row.label}</td>
@@ -106,7 +117,17 @@ function BalanceDataRow({
         )}
       </td>
       <td className="border border-border px-2 py-1.5">
-        <input className={readonlyClass} readOnly value={scalars[row.annualParam] ?? "0"} />
+        {readonlyAnnual ? (
+          <input className={readonlyClass} readOnly value={scalars[row.annualParam] ?? "0"} />
+        ) : (
+          <input
+            className={inputClass}
+            type="number"
+            step="0.01"
+            value={scalars[row.annualParam] ?? ""}
+            onChange={(e) => onAnnualChange(row.annualParam, clampDecimal(e.target.value))}
+          />
+        )}
       </td>
     </tr>
   );
@@ -165,6 +186,16 @@ export function AnnexureWaterBalanceRenderer({ schema, tab, subtab, formState, s
     [layout, wcTwoDaily],
   );
 
+  const setAnnual = useCallback(
+    (param: string, value: string) => {
+      setDraft((prev) => {
+        const { flush, flow } = wcTwoDaily();
+        return computeWaterBalanceAnnex({ ...prev.scalars, [param]: value }, layout, flush, flow);
+      });
+    },
+    [layout, wcTwoDaily],
+  );
+
   useEffect(() => {
     const handle: AnnexureRendererHandle = {
       getSaveFields: () => buildSavePayloadFromWaterBalance(draft.scalars, schema),
@@ -182,7 +213,11 @@ export function AnnexureWaterBalanceRenderer({ schema, tab, subtab, formState, s
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-card px-4 py-3">
+      <div className="rounded-t-xl border border-b-0 border-border bg-ocean/10 px-4 py-3">
+        <h2 className="text-base font-semibold text-ocean">{schema.title}</h2>
+      </div>
+      <div className="space-y-6 rounded-b-xl border border-border bg-card p-4 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-muted/20 px-4 py-3">
         <h3 className="text-base font-semibold text-foreground">Water Balance Chart</h3>
         <span className={validityClass}>{draft.validity}</span>
       </div>
@@ -193,8 +228,10 @@ export function AnnexureWaterBalanceRenderer({ schema, tab, subtab, formState, s
           section={section}
           scalars={draft.scalars}
           onDailyChange={setDaily}
+          onAnnualChange={setAnnual}
         />
       ))}
+      </div>
     </div>
   );
 }

@@ -36,8 +36,12 @@ function fmt2(v: number): string {
   return v.toFixed(2);
 }
 
-export function materialLabelFromSource(row: WasteMaterialSourceRow): string {
+export function materialLabelFromSource(
+  row: WasteMaterialSourceRow,
+  materialOptions?: Record<string, string>,
+): string {
   const sub = row.sub_category.trim();
+  if (materialOptions?.[sub]) return materialOptions[sub];
   if (sub === "Other") {
     const other = row.other_sub_catg.trim();
     return other || sub;
@@ -106,6 +110,7 @@ export function mergeWasteRowsFromSource(
   sources: WasteMaterialSourceRow[],
   prev: WasteManagementRow[],
   minRows: number,
+  materialOptions?: Record<string, string>,
 ): WasteManagementRow[] {
   const targetLen = Math.max(sources.length, minRows);
   const prevByIndex = new Map(prev.map((r) => [r.sourceIndex, r]));
@@ -115,7 +120,7 @@ export function mergeWasteRowsFromSource(
     const src = sources[i];
     const sourceIndex = i + 1;
     const existing = prevByIndex.get(sourceIndex);
-    const description = src ? materialLabelFromSource(src) : "";
+    const description = src ? materialLabelFromSource(src, materialOptions) : "";
 
     if (existing) {
       rows.push({

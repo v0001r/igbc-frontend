@@ -9,6 +9,7 @@ export type ExistingSingleZoneRow = {
   areaDescription: string;
   outdoorAirflowRate: string;
   zonePopulation: string;
+  occupantDensity: string;
   outdoorFlowRateArea: string;
   totalArea: string;
   breathingZoneOutdoor: string;
@@ -23,13 +24,17 @@ export type ExistingSingleZoneRow = {
 
 export type ExistingSingleZoneState = {
   rows: ExistingSingleZoneRow[];
+  totalOutdoorAirIntake: string;
 };
+
+export type VentilationZoneVariant = "existingBuilding" | "newBuilding";
 
 export const EXISTING_SINGLE_ZONE_DEFAULT_ROW: ExistingSingleZoneRow = {
   zone: "",
   areaDescription: "",
   outdoorAirflowRate: "",
   zonePopulation: "",
+  occupantDensity: "",
   outdoorFlowRateArea: "",
   totalArea: "",
   breathingZoneOutdoor: "",
@@ -61,6 +66,7 @@ export function createDefaultExistingSingleZoneState(rowCount = 5): ExistingSing
       ...EXISTING_SINGLE_ZONE_DEFAULT_ROW,
       zoneAirDistribution: "1",
     })),
+    totalOutdoorAirIntake: "",
   };
 }
 
@@ -87,31 +93,53 @@ export function applyAreaDescription(
 export function computeExistingSingleZoneRow(
   row: ExistingSingleZoneRow,
   areaDescriptions: Record<string, AreaDescriptionDef>,
+  variant: VentilationZoneVariant = "existingBuilding",
 ): ExistingSingleZoneRow {
   const withRates = applyAreaDescription(row, areaDescriptions);
 
   const rp = n(withRates.outdoorAirflowRate);
   const ra = n(withRates.outdoorFlowRateArea);
-  const pz = n(withRates.zonePopulation);
   const az = n(withRates.totalArea);
   const ez = n(withRates.zoneAirDistribution) || 1;
-  const designIntake = n(withRates.flowOutdoorAirIntake);
+
+  const pz =
+    variant === "newBuilding"
+      ? (() => {
+          const od = n(withRates.occupantDensity);
+          return od > 0 ? az / od : 0;
+        })()
+      : n(withRates.zonePopulation);
 
   const breathingZone = pz * rp + ra * az;
   const roundedBreathing = Math.round(breathingZone);
   const airFlow = ez > 0 ? roundedBreathing / ez : 0;
 
+  const shared = {
+    ...withRates,
+    zonePopulation: variant === "newBuilding" ? (pz > 0 ? fmt2(pz) : "") : withRates.zonePopulation,
+    breathingZoneOutdoor: roundedBreathing > 0 ? String(roundedBreathing) : "",
+    zoneOutdoorAirFlow: airFlow > 0 ? fmt2(airFlow) : "",
+  };
+
+  if (variant === "newBuilding") {
+    return {
+      ...shared,
+      outdoorAirIntakeFlow: "",
+      minimumAirFresh: "",
+      minimumAirFreshOver: "",
+      increaseOverStandard: "",
+    };
+  }
+
+  const designIntake = n(withRates.flowOutdoorAirIntake);
   const minimumFresh = airFlow * 1.2;
   const minimumFreshOver = airFlow * 1.3;
-
   const increaseOverStandard =
     designIntake > 0 ? ((designIntake - airFlow) / designIntake) * 100 : 0;
 
   return {
-    ...withRates,
+    ...shared,
     zoneAirDistribution: withRates.zoneAirDistribution || "1",
-    breathingZoneOutdoor: roundedBreathing > 0 ? String(roundedBreathing) : "",
-    zoneOutdoorAirFlow: airFlow > 0 ? fmt2(airFlow) : "",
     outdoorAirIntakeFlow: airFlow > 0 ? fmt2(airFlow) : "",
     minimumAirFresh: airFlow > 0 ? fmt2(minimumFresh) : "",
     minimumAirFreshOver: airFlow > 0 ? fmt2(minimumFreshOver) : "",
@@ -122,9 +150,17 @@ export function computeExistingSingleZoneRow(
 export function computeExistingSingleZoneState(
   state: ExistingSingleZoneState,
   areaDescriptions: Record<string, AreaDescriptionDef>,
+  variant: VentilationZoneVariant = "existingBuilding",
 ): ExistingSingleZoneState {
-  return {
-    ...state,
-    rows: state.rows.map((row) => computeExistingSingleZoneRow(row, areaDescriptions)),
-  };
+  const rows = state.rows.map((row) => computeExistingSingleZoneRow(row, areaDescriptions, variant));
+
+  if (variant === "newBuilding") {
+    const total = rows.reduce((sum, r) => sum + n(r.zoneOutdoorAirFlow), 0);
+    return {
+      rows,
+      totalOutdoorAirIntake: total > 0 ? fmt2(total) : "",
+    };
+  }
+
+  return { rows, totalOutdoorAirIntake: "" };
 }

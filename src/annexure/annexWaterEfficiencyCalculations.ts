@@ -1,5 +1,32 @@
 import type { WaterEfficiencyPresetDef } from "@/annexure/annexureTypes";
 
+export type WaterEfficiencyPresetFields = {
+  status: string;
+  duration: string;
+  daily: string;
+  occupancy: string;
+  base: string;
+  unit: string;
+  totalUse: string;
+  proposed: string;
+  proposedTotal: string;
+};
+
+export function presetFieldNames(p: WaterEfficiencyPresetDef): WaterEfficiencyPresetFields {
+  const prefix = p.prefix;
+  return {
+    status: `${prefix}_status`,
+    duration: `${prefix}_duration`,
+    daily: `${prefix}_daily`,
+    occupancy: `${prefix}_occupancy`,
+    base: `${prefix}_base`,
+    unit: `${prefix}_unit`,
+    totalUse: p.totalUseParam ?? `${prefix}_total_use`,
+    proposed: p.proposedParam ?? `${prefix}_proposed`,
+    proposedTotal: p.proposedTotalParam ?? `${prefix}_proposed_total`,
+  };
+}
+
 export type WaterEfficiencyDynamicRow = {
   fixture_type: string;
   shower: string;
@@ -87,18 +114,18 @@ export function computeWaterEfficiencyAnnex(
   const scalars = { ...draft.scalars };
 
   for (const p of presets) {
-    const prefix = p.prefix;
-    const status = scalars[`${prefix}_status`] ?? "";
-    const duration = scalars[`${prefix}_duration`] ?? p.defaults.duration ?? "";
-    const daily = scalars[`${prefix}_daily`] ?? p.defaults.daily ?? "";
-    const occ = scalars[`${prefix}_occupancy`] ?? occupancy;
-    const base = scalars[`${prefix}_base`] ?? p.defaults.base ?? "";
-    const proposed = scalars[`${prefix}_proposed`] ?? "";
+    const fields = presetFieldNames(p);
+    const status = scalars[fields.status] ?? "";
+    const duration = scalars[fields.duration] ?? p.defaults.duration ?? "";
+    const daily = scalars[fields.daily] ?? p.defaults.daily ?? "";
+    const occ = scalars[fields.occupancy] ?? occupancy;
+    const base = scalars[fields.base] ?? p.defaults.base ?? "";
+    const proposed = scalars[fields.proposed] ?? "";
     const { baseTotal, proposedTotal } = computePresetRow(status, duration, daily, occ, base, proposed);
-    scalars[`${prefix}_total_use`] = baseTotal;
-    scalars[`${prefix}_proposed_total`] = proposedTotal;
-    if (!scalars[`${prefix}_occupancy`]) scalars[`${prefix}_occupancy`] = occupancy;
-    if (!scalars[`${prefix}_unit`]) scalars[`${prefix}_unit`] = p.defaults.unit ?? "";
+    scalars[fields.totalUse] = baseTotal;
+    scalars[fields.proposedTotal] = proposedTotal;
+    if (!scalars[fields.occupancy]) scalars[fields.occupancy] = occupancy;
+    if (!scalars[fields.unit]) scalars[fields.unit] = p.defaults.unit ?? "";
   }
 
   const dynamicRows = draft.dynamicRows.map(computeDynamicRow);
@@ -109,8 +136,9 @@ export function computeWaterEfficiencyAnnex(
   let flowProposed = 0;
 
   for (const p of presets) {
-    const base = n(scalars[`${p.prefix}_total_use`]);
-    const prop = n(scalars[`${p.prefix}_proposed_total`]);
+    const fields = presetFieldNames(p);
+    const base = n(scalars[fields.totalUse]);
+    const prop = n(scalars[fields.proposedTotal]);
     if (p.category === "flush") {
       flushBase += base;
       flushProposed += prop;
@@ -163,4 +191,54 @@ export function computeWaterEfficiencyAnnex(
   scalars.annex_mandatory = percent >= 0 ? "Yes" : "No";
 
   return { scalars, dynamicRows };
+}
+
+export type WaterEfficiencyTableState = {
+  tableIndex: number;
+  tableName: string;
+  scalars: WaterEfficiencyScalars;
+  dynamicRows: WaterEfficiencyDynamicRow[];
+};
+
+export type WaterEfficiencyMultiAnnexState = {
+  tables: WaterEfficiencyTableState[];
+  aggregates: {
+    total_volume_base_tb: string;
+    total_volume_proposed_tb: string;
+    saving_percentage_tb: string;
+  };
+};
+
+export function computeWaterEfficiencyMultiAnnex(
+  draft: WaterEfficiencyMultiAnnexState,
+  presets: WaterEfficiencyPresetDef[],
+  occupancyDefault: string,
+): WaterEfficiencyMultiAnnexState {
+  const tables = draft.tables.map((table) => {
+    const computed = computeWaterEfficiencyAnnex(
+      { scalars: table.scalars, dynamicRows: table.dynamicRows },
+      presets,
+      occupancyDefault,
+    );
+    return { ...table, scalars: computed.scalars, dynamicRows: computed.dynamicRows };
+  });
+
+  let totalBase = 0;
+  let totalProposed = 0;
+  for (const table of tables) {
+    totalBase += n(table.scalars.total_volume_base);
+    totalProposed += n(table.scalars.total_volume_proposed);
+  }
+
+  const difference = totalBase - totalProposed;
+  const saving = totalBase > 0 ? (difference / totalBase) * 100 : 0;
+
+  return {
+    tables,
+    aggregates: {
+      total_volume_base_tb: fmt2(totalBase),
+      total_volume_proposed_tb: fmt2(totalProposed),
+      saving_percentage_tb: fmt2(saving),
+    },
+  };
 }

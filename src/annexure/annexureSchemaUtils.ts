@@ -18,6 +18,7 @@ const INTERACTIVE_RENDER_MODES = new Set<AnnexureRenderMode>([
   "wasteManagement",
   "waterBalance",
   "wastewaterReuse",
+  "hvacWaterRequirement",
   "urbanHeatRoof",
   "urbanHeatNonRoof",
   "existingRainfall",
@@ -31,6 +32,7 @@ const INTERACTIVE_RENDER_MODES = new Set<AnnexureRenderMode>([
   "existingOneSiteRenewable",
   "existingSingleZoneSystem",
   "existingOutdoorAirSystem",
+  "ecoFriendlyRefrigerant",
 ]);
 
 export function schemaMatchesRatingType(

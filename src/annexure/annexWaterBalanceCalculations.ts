@@ -50,7 +50,9 @@ export function computeWaterBalanceAnnex(
       } else if (row.source === "wcTwoFlow") {
         scalars[row.dailyParam] = wcTwoFlowDaily;
         scalars[row.annualParam] = annualFromDaily(wcTwoFlowDaily, days);
-      } else if (row.editableDaily !== false) {
+      } else if (row.annualMode === "mirrorDaily") {
+        scalars[row.annualParam] = scalars[row.dailyParam] ?? "";
+      } else if (!row.editableAnnual && row.editableDaily !== false) {
         scalars[row.annualParam] = annualFromDaily(scalars[row.dailyParam] ?? "", days);
       }
     }

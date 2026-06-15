@@ -17,6 +17,7 @@ import {
   getProjectCategories,
   getProjectRegistrationFeeMasters,
   getProjectResume,
+  isRatingConstructionTypeCompatible,
   type ProjectResumeStepOne,
   type ProjectCategoryRatingSystem,
   updateProjectStepTwoDetails,
@@ -431,10 +432,9 @@ const RegisterProject = () => {
   const selectedCategory = categories.find((item) => item.id === formData.category);
 
   const selectedFeeRule = getProjectFeeRuleByRatingSystem(selectedRatingLabel);
-  const isRatingConstructionCompatible = Boolean(
-    !selectedFeeRule ||
-      !formData.constructionType ||
-      selectedFeeRule.compatibleConstructionTypes.includes(formData.constructionType),
+  const isRatingConstructionCompatible = isRatingConstructionTypeCompatible(
+    selectedRatingSystem?.type,
+    formData.constructionType,
   );
   const ratingSystemRegistrationFee = toFiniteNumber(selectedRatingSystem?.fees?.nonMember);
   const feePreview = calculateProjectRegistrationFee(selectedRatingLabel, {
@@ -482,6 +482,9 @@ const RegisterProject = () => {
                   gstPercent: 18,
                 },
               ]),
+            ),
+            compatibilityMap: Object.fromEntries(
+              systems.map((item) => [item.ratingName, item.type ?? []]),
             ),
           });
         }

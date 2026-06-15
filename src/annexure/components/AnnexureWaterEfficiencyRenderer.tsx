@@ -1,5 +1,6 @@
 import {
   computeWaterEfficiencyAnnex,
+  presetFieldNames,
   type WaterEfficiencyAnnexState,
   type WaterEfficiencyDynamicRow,
 } from "@/annexure/annexWaterEfficiencyCalculations";
@@ -9,6 +10,7 @@ import {
 } from "@/annexure/annexWaterEfficiencyStorage";
 import type { AnnexureSchemaDefinition, WaterEfficiencyPresetDef } from "@/annexure/annexureTypes";
 import type { AnnexureRendererHandle } from "@/annexure/components/annexureRendererHandle";
+import { AnnexureWaterEfficiencyMultiTableRenderer } from "@/annexure/components/AnnexureWaterEfficiencyMultiTableRenderer";
 import type { CertificationFormResponse } from "@/lib/certificationForm";
 import { RatingDataIndex } from "@/lib/ratingDataIndex";
 import { Plus, Trash2 } from "lucide-react";
@@ -55,9 +57,9 @@ function PresetRow({
   occupancy: string;
   onScalar: (param: string, value: string) => void;
 }) {
-  const prefix = preset.prefix;
-  const status = scalars[`${prefix}_status`] ?? "";
-  const occ = scalars[`${prefix}_occupancy`] ?? occupancy;
+  const fields = presetFieldNames(preset);
+  const status = scalars[fields.status] ?? "";
+  const occ = scalars[fields.occupancy] ?? occupancy;
 
   return (
     <tr className="border-b border-border text-center">
@@ -76,7 +78,7 @@ function PresetRow({
         <select
           className={inputClass}
           value={status}
-          onChange={(e) => onScalar(`${prefix}_status`, e.target.value)}
+          onChange={(e) => onScalar(fields.status, e.target.value)}
         >
           <option value="">Select Status</option>
           <option value="yes">Yes</option>
@@ -84,35 +86,35 @@ function PresetRow({
         </select>
       </td>
       <td className="border border-border px-2 py-1.5">
-        <input className={readonlyClass} readOnly value={scalars[`${prefix}_duration`] ?? ""} />
+        <input className={readonlyClass} readOnly value={scalars[fields.duration] ?? ""} />
       </td>
       <td className="border border-border px-2 py-1.5">
-        <input className={readonlyClass} readOnly value={scalars[`${prefix}_daily`] ?? ""} />
+        <input className={readonlyClass} readOnly value={scalars[fields.daily] ?? ""} />
       </td>
       <td className="border border-border px-2 py-1.5">
         <input className={readonlyClass} readOnly value={occ} />
       </td>
       <td className="border border-border px-2 py-1.5">
-        <input className={readonlyClass} readOnly value={scalars[`${prefix}_base`] ?? ""} />
+        <input className={readonlyClass} readOnly value={scalars[fields.base] ?? ""} />
       </td>
       <td className="border border-border px-2 py-1.5">
-        <input className={readonlyClass} readOnly value={scalars[`${prefix}_unit`] ?? ""} />
+        <input className={readonlyClass} readOnly value={scalars[fields.unit] ?? ""} />
       </td>
       <td className="border border-border px-2 py-1.5">
-        <input className={readonlyClass} readOnly value={scalars[`${prefix}_total_use`] ?? "0"} />
+        <input className={readonlyClass} readOnly value={scalars[fields.totalUse] ?? "0"} />
       </td>
       <td className="border border-border px-2 py-1.5">
         <input
           className={inputClass}
           type="number"
           step="0.01"
-          value={scalars[`${prefix}_proposed`] ?? ""}
-          onChange={(e) => onScalar(`${prefix}_proposed`, clampDecimal(e.target.value))}
+          value={scalars[fields.proposed] ?? ""}
+          onChange={(e) => onScalar(fields.proposed, clampDecimal(e.target.value))}
           placeholder="Enter Value"
         />
       </td>
       <td className="border border-border px-2 py-1.5">
-        <input className={readonlyClass} readOnly value={scalars[`${prefix}_proposed_total`] ?? "0"} />
+        <input className={readonlyClass} readOnly value={scalars[fields.proposedTotal] ?? "0"} />
       </td>
     </tr>
   );
@@ -147,10 +149,8 @@ function DynamicRow({
       <td className="border border-border px-2 py-1.5">
         <input
           className={inputClass}
-          type="number"
-          step="0.01"
           value={row.shower}
-          onChange={(e) => onChange(rowIndex, { shower: clampDecimal(e.target.value) })}
+          onChange={(e) => onChange(rowIndex, { shower: e.target.value })}
           placeholder="Fixture Detail"
         />
       </td>
@@ -250,6 +250,18 @@ export function AnnexureWaterEfficiencyRenderer({
   saveHandleRef,
 }: Props) {
   const layout = schema.waterEfficiencyLayout!;
+  if (layout.multiTable) {
+    return (
+      <AnnexureWaterEfficiencyMultiTableRenderer
+        schema={schema}
+        tab={tab}
+        subtab={subtab}
+        formState={formState}
+        saveHandleRef={saveHandleRef}
+      />
+    );
+  }
+
   const presets = layout.presetRows;
   const minDynamic = layout.minDynamicRows ?? 1;
   const maxDynamic = layout.maxDynamicRows ?? 50;
@@ -351,6 +363,10 @@ export function AnnexureWaterEfficiencyRenderer({
 
   return (
     <div className="space-y-4">
+      <div className="rounded-t-xl border border-b-0 border-border bg-ocean/10 px-4 py-3">
+        <h2 className="text-base font-semibold text-ocean">{schema.title}</h2>
+      </div>
+      <div className="space-y-4 rounded-b-xl border border-border bg-card p-4 shadow-sm">
       <button
         type="button"
         className="inline-flex items-center gap-1 rounded-md bg-[#467db5] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#3a5f99]"
@@ -395,7 +411,7 @@ export function AnnexureWaterEfficiencyRenderer({
                 Baseline Flow (Rate / Capacity)
               </th>
               <th className="border border-border px-2 py-2">Total daily Water Use (in Litres)</th>
-              <th className="border border-border px-2 py-2">Baseline Flow (Rate / Capacity)</th>
+              <th className="border border-border px-2 py-2">Proposed Flow</th>
               <th className="border border-border px-2 py-2">Total daily Water Use (in Litres)</th>
             </tr>
           </thead>
@@ -485,6 +501,7 @@ export function AnnexureWaterEfficiencyRenderer({
             </tr>
           </tbody>
         </table>
+      </div>
       </div>
     </div>
   );

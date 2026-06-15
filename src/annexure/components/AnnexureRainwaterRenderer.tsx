@@ -171,6 +171,8 @@ export function AnnexureRainwaterRenderer({
   const yearOpts = layout.rainfall.yearOptions ?? {};
   const monthOpts = layout.rainfall.monthOptions ?? {};
   const caseOpts = layout.caseOptions ?? {};
+  const allowOtherYear = layout.rainfall.allowOtherYear === true;
+  const onedayLabel = layout.onedayLabel ?? "One-Day Rainfall (m)";
 
   return (
     <div className="space-y-4">
@@ -214,7 +216,13 @@ export function AnnexureRainwaterRenderer({
                       onChange={(e) =>
                         setDraftRecalc((s) => {
                           const rainfallRows = s.rainfallRows.map((r, i) =>
-                            i === ri ? { ...r, years: e.target.value } : r,
+                            i === ri
+                              ? {
+                                  ...r,
+                                  years: e.target.value,
+                                  other_years: e.target.value === "other" ? r.other_years : "",
+                                }
+                              : r,
                           );
                           return { ...s, rainfallRows };
                         })
@@ -226,6 +234,22 @@ export function AnnexureRainwaterRenderer({
                         </option>
                       ))}
                     </select>
+                    {allowOtherYear && row.years === "other" ? (
+                      <input
+                        type="number"
+                        className={`${inputClass} mt-2`}
+                        placeholder="Enter Year"
+                        value={row.other_years}
+                        onChange={(e) =>
+                          setDraftRecalc((s) => {
+                            const rainfallRows = s.rainfallRows.map((r, i) =>
+                              i === ri ? { ...r, other_years: e.target.value } : r,
+                            );
+                            return { ...s, rainfallRows };
+                          })
+                        }
+                      />
+                    ) : null}
                   </td>
                   <td className="px-2 py-1">
                     <select
@@ -308,7 +332,7 @@ export function AnnexureRainwaterRenderer({
                 </tr>
               ) : null}
               <tr className="border-b border-border/70">
-                <td className="px-3 py-2 font-medium">One-Day Rainfall (m)</td>
+                <td className="px-3 py-2 font-medium">{onedayLabel}</td>
                 <td className="px-2 py-1">
                   <div className={readonlyClass}>{draft.oneday}</div>
                 </td>

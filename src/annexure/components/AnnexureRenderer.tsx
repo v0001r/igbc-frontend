@@ -15,6 +15,7 @@ import { AnnexureComparisonTable } from "@/annexure/components/AnnexureCompariso
 import { AnnexureDwellingRenderer } from "@/annexure/components/AnnexureDwellingRenderer";
 import { AnnexureRainwaterRenderer } from "@/annexure/components/AnnexureRainwaterRenderer";
 import { AnnexureWaterEfficiencyRenderer } from "@/annexure/components/AnnexureWaterEfficiencyRenderer";
+import { AnnexureHvacWaterRequirementRenderer } from "@/annexure/components/AnnexureHvacWaterRequirementRenderer";
 import { AnnexureGiWcTwoRenderer } from "@/annexure/components/AnnexureGiWcTwoRenderer";
 import { AnnexureConditionedSpacesRenderer } from "@/annexure/components/AnnexureConditionedSpacesRenderer";
 import { AnnexureNaturalVentilationRenderer } from "@/annexure/components/AnnexureNaturalVentilationRenderer";
@@ -40,12 +41,15 @@ import { AnnexureEpiLimitCalculationRenderer } from "@/annexure/components/Annex
 import { AnnexureExistingSimulationMethodRenderer } from "@/annexure/components/AnnexureExistingSimulationMethodRenderer";
 import { AnnexureExistingOneSiteRenewableRenderer } from "@/annexure/components/AnnexureExistingOneSiteRenewableRenderer";
 import { AnnexureExistingSingleZoneRenderer } from "@/annexure/components/AnnexureExistingSingleZoneRenderer";
+import { AnnexureEcoFriendlyRefrigerantRenderer } from "@/annexure/components/AnnexureEcoFriendlyRefrigerantRenderer";
 import { schemaMatchesRatingType } from "@/annexure/annexureSchemaUtils";
 import {
   buildSavePayloadFromComparison,
   getComparisonLayout,
   hydrateComparisonFromForm,
 } from "@/annexure/annexureComparisonStorage";
+import { computeFactoryBuildingEnergy } from "@/annexure/annexFactoryBuildingEnergyCalculations";
+import type { ComparisonValues } from "@/annexure/annexureComparisonStorage";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { MutableRefObject } from "react";
 import type { AnnexureRendererHandle } from "@/annexure/components/annexureRendererHandle";
@@ -130,6 +134,9 @@ export function AnnexureRenderer(props: Props) {
   if (props.schema.renderMode === "wastewaterReuse") {
     return <AnnexureWastewaterReuseRenderer {...props} />;
   }
+  if (props.schema.renderMode === "hvacWaterRequirement") {
+    return <AnnexureHvacWaterRequirementRenderer {...props} />;
+  }
   if (props.schema.renderMode === "urbanHeatRoof") {
     return <AnnexureUrbanHeatRoofRenderer {...props} />;
   }
@@ -168,6 +175,9 @@ export function AnnexureRenderer(props: Props) {
     props.schema.renderMode === "existingOutdoorAirSystem"
   ) {
     return <AnnexureExistingSingleZoneRenderer {...props} />;
+  }
+  if (props.schema.renderMode === "ecoFriendlyRefrigerant") {
+    return <AnnexureEcoFriendlyRefrigerantRenderer {...props} />;
   }
   if (props.schema.renderMode === "reference") {
     return (
@@ -213,15 +223,30 @@ function AnnexureComparisonRenderer({
     [formState.data, tab, subtab],
   );
 
-  const [values, setValues] = useState(() => hydrateComparisonFromForm(schema, getParam));
+  const applyComparisonCompute = useCallback(
+    (values: ComparisonValues) => {
+      if (schema.comparisonCompute === "factoryBuildingEnergy") {
+        return computeFactoryBuildingEnergy(values);
+      }
+      return values;
+    },
+    [schema.comparisonCompute],
+  );
+
+  const [values, setValues] = useState(() =>
+    applyComparisonCompute(hydrateComparisonFromForm(schema, getParam)),
+  );
 
   useEffect(() => {
-    setValues(hydrateComparisonFromForm(schema, getParam));
-  }, [schema, dataSignature, getParam]);
+    setValues(applyComparisonCompute(hydrateComparisonFromForm(schema, getParam)));
+  }, [schema, dataSignature, getParam, applyComparisonCompute]);
 
-  const onFieldChange = useCallback((param: string, value: string) => {
-    setValues((prev) => ({ ...prev, [param]: value }));
-  }, []);
+  const onFieldChange = useCallback(
+    (param: string, value: string) => {
+      setValues((prev) => applyComparisonCompute({ ...prev, [param]: value }));
+    },
+    [applyComparisonCompute],
+  );
 
   const updateSaveHandle = useCallback(() => {
     saveHandleRef.current = {

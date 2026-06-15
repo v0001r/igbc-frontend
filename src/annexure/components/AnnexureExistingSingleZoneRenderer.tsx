@@ -5,10 +5,11 @@ import {
   type ExistingSingleZoneState,
 } from "@/annexure/annexExistingSingleZoneCalculations";
 import {
-  areaDescriptionsFromSchema,
   buildSavePayloadFromExistingSingleZone,
   hydrateExistingSingleZoneAnnex,
   ventilationZoneLayout,
+  ventilationZoneVariant,
+  areaDescriptionsFromSchema,
 } from "@/annexure/annexExistingSingleZoneStorage";
 import type { AnnexureSchemaDefinition } from "@/annexure/annexureTypes";
 import type { AnnexureRendererHandle } from "@/annexure/components/annexureRendererHandle";
@@ -71,6 +72,8 @@ export function AnnexureExistingSingleZoneRenderer({
   saveHandleRef,
 }: Props) {
   const layout = ventilationZoneLayout(schema);
+  const variant = ventilationZoneVariant(schema);
+  const isNewBuilding = variant === "newBuilding";
   const maxRows = layout.maxRows ?? 50;
   const addRowLabel = layout.addRowLabel ?? "Add More";
   const areaDescriptions = useMemo(() => areaDescriptionsFromSchema(schema), [schema]);
@@ -95,9 +98,9 @@ export function AnnexureExistingSingleZoneRenderer({
 
   const recalc = useCallback(
     (fn: (s: ExistingSingleZoneState) => ExistingSingleZoneState) => {
-      setDraft((prev) => computeExistingSingleZoneState(fn(prev), areaDescriptions));
+      setDraft((prev) => computeExistingSingleZoneState(fn(prev), areaDescriptions, variant));
     },
-    [areaDescriptions],
+    [areaDescriptions, variant],
   );
 
   useEffect(() => {
@@ -122,7 +125,22 @@ export function AnnexureExistingSingleZoneRenderer({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between rounded-t-xl border border-b-0 border-border bg-ocean/10 px-4 py-3">
-        <h2 className="text-base font-semibold text-ocean">{schema.title}</h2>
+        <div>
+          <h2 className="text-base font-semibold text-ocean">{schema.title}</h2>
+          {isNewBuilding && layout.ezHelpUrl ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Please refer to the image for{" "}
+              <a
+                href={layout.ezHelpUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-ocean underline"
+              >
+                Zone Air Distribution Effectiveness (Ez)
+              </a>
+            </p>
+          ) : null}
+        </div>
         <button
           type="button"
           disabled={!canAdd}
@@ -141,7 +159,7 @@ export function AnnexureExistingSingleZoneRenderer({
 
       <div className="rounded-b-xl border border-border bg-card p-4 shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1800px] border-collapse text-xs sm:text-sm">
+          <table className="w-full min-w-[1200px] border-collapse text-xs sm:text-sm">
             <thead>
               <tr className="bg-muted/60 text-center font-semibold text-muted-foreground">
                 <th className={`${cellBorder} px-2 py-2 w-12`}>S.No</th>
@@ -151,6 +169,11 @@ export function AnnexureExistingSingleZoneRenderer({
                   Outdoor Airflow Rate Required per Person cfm / person (Rp)
                 </th>
                 <th className={`${cellBorder} px-2 py-2 min-w-[100px]`}>Zone Population (Pz)</th>
+                {isNewBuilding ? (
+                  <th className={`${cellBorder} px-2 py-2 min-w-[120px]`}>
+                    Occupant Density ft2 / person
+                  </th>
+                ) : null}
                 <th className={`${cellBorder} px-2 py-2 min-w-[120px]`}>
                   Outdoor Airflow Rate per Unit Area cfm / sq.ft (Ra)
                 </th>
@@ -164,19 +187,23 @@ export function AnnexureExistingSingleZoneRenderer({
                 <th className={`${cellBorder} px-2 py-2 min-w-[120px]`}>
                   Zone Outdoor Airflow (cfm) (Voz = Vbz/Ez)
                 </th>
-                <th className={`${cellBorder} px-2 py-2 min-w-[110px]`}>
-                  Outdoor Air Intake Flow (Vot = Voz)
-                </th>
-                <th className={`${cellBorder} px-2 py-2 min-w-[120px]`}>
-                  20% Improvement over Minimum fresh air requirement
-                </th>
-                <th className={`${cellBorder} px-2 py-2 min-w-[120px]`}>
-                  30% Improvement over Minimum fresh air requirement
-                </th>
-                <th className={`${cellBorder} px-2 py-2 min-w-[120px]`}>Outdoor Air Intake Flow</th>
-                <th className={`${cellBorder} px-2 py-2 min-w-[120px]`}>
-                  Percentage Increase Over Standard
-                </th>
+                {!isNewBuilding ? (
+                  <>
+                    <th className={`${cellBorder} px-2 py-2 min-w-[110px]`}>
+                      Outdoor Air Intake Flow (Vot = Voz)
+                    </th>
+                    <th className={`${cellBorder} px-2 py-2 min-w-[120px]`}>
+                      20% Improvement over Minimum fresh air requirement
+                    </th>
+                    <th className={`${cellBorder} px-2 py-2 min-w-[120px]`}>
+                      30% Improvement over Minimum fresh air requirement
+                    </th>
+                    <th className={`${cellBorder} px-2 py-2 min-w-[120px]`}>Outdoor Air Intake Flow</th>
+                    <th className={`${cellBorder} px-2 py-2 min-w-[120px]`}>
+                      Percentage Increase Over Standard
+                    </th>
+                  </>
+                ) : null}
               </tr>
             </thead>
             <tbody>
@@ -185,6 +212,7 @@ export function AnnexureExistingSingleZoneRenderer({
                   key={idx}
                   row={row}
                   idx={idx}
+                  isNewBuilding={isNewBuilding}
                   areaOptions={areaOptions}
                   onUpdate={(patch) =>
                     recalc((s) => ({
@@ -202,6 +230,16 @@ export function AnnexureExistingSingleZoneRenderer({
                   }
                 />
               ))}
+              {isNewBuilding ? (
+                <tr className="bg-muted/30 font-medium text-center">
+                  <td className={`${cellBorder} px-2 py-2 text-right`} colSpan={10}>
+                    Total outdoor air intake (cfm)
+                  </td>
+                  <td className={`${cellBorder} px-2 py-1`}>
+                    <NumInput value={draft.totalOutdoorAirIntake} readOnly />
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
@@ -213,12 +251,14 @@ export function AnnexureExistingSingleZoneRenderer({
 function ZoneRow({
   row,
   idx,
+  isNewBuilding,
   areaOptions,
   onUpdate,
   onAreaDescriptionChange,
 }: {
   row: ExistingSingleZoneRow;
   idx: number;
+  isNewBuilding: boolean;
   areaOptions: [string, { label: string }][];
   onUpdate: (patch: Partial<ExistingSingleZoneRow>) => void;
   onAreaDescriptionChange: (slug: string) => void;
@@ -252,8 +292,17 @@ function ZoneRow({
         <NumInput value={row.outdoorAirflowRate} readOnly />
       </td>
       <td className={`${cellBorder} px-2 py-1`}>
-        <NumInput value={row.zonePopulation} onChange={(v) => onUpdate({ zonePopulation: v })} />
+        <NumInput
+          value={row.zonePopulation}
+          readOnly={isNewBuilding}
+          onChange={isNewBuilding ? undefined : (v) => onUpdate({ zonePopulation: v })}
+        />
       </td>
+      {isNewBuilding ? (
+        <td className={`${cellBorder} px-2 py-1`}>
+          <NumInput value={row.occupantDensity} onChange={(v) => onUpdate({ occupantDensity: v })} />
+        </td>
+      ) : null}
       <td className={`${cellBorder} px-2 py-1`}>
         <NumInput value={row.outdoorFlowRateArea} readOnly />
       </td>
@@ -264,29 +313,37 @@ function ZoneRow({
         <NumInput value={row.breathingZoneOutdoor} readOnly />
       </td>
       <td className={`${cellBorder} px-2 py-1`}>
-        <NumInput value={row.zoneAirDistribution} readOnly />
+        <NumInput
+          value={row.zoneAirDistribution}
+          readOnly={!isNewBuilding}
+          onChange={isNewBuilding ? (v) => onUpdate({ zoneAirDistribution: v }) : undefined}
+        />
       </td>
       <td className={`${cellBorder} px-2 py-1`}>
         <NumInput value={row.zoneOutdoorAirFlow} readOnly />
       </td>
-      <td className={`${cellBorder} px-2 py-1`}>
-        <NumInput value={row.outdoorAirIntakeFlow} readOnly />
-      </td>
-      <td className={`${cellBorder} px-2 py-1`}>
-        <NumInput value={row.minimumAirFresh} readOnly />
-      </td>
-      <td className={`${cellBorder} px-2 py-1`}>
-        <NumInput value={row.minimumAirFreshOver} readOnly />
-      </td>
-      <td className={`${cellBorder} px-2 py-1`}>
-        <NumInput
-          value={row.flowOutdoorAirIntake}
-          onChange={(v) => onUpdate({ flowOutdoorAirIntake: v })}
-        />
-      </td>
-      <td className={`${cellBorder} px-2 py-1`}>
-        <NumInput value={row.increaseOverStandard} readOnly />
-      </td>
+      {!isNewBuilding ? (
+        <>
+          <td className={`${cellBorder} px-2 py-1`}>
+            <NumInput value={row.outdoorAirIntakeFlow} readOnly />
+          </td>
+          <td className={`${cellBorder} px-2 py-1`}>
+            <NumInput value={row.minimumAirFresh} readOnly />
+          </td>
+          <td className={`${cellBorder} px-2 py-1`}>
+            <NumInput value={row.minimumAirFreshOver} readOnly />
+          </td>
+          <td className={`${cellBorder} px-2 py-1`}>
+            <NumInput
+              value={row.flowOutdoorAirIntake}
+              onChange={(v) => onUpdate({ flowOutdoorAirIntake: v })}
+            />
+          </td>
+          <td className={`${cellBorder} px-2 py-1`}>
+            <NumInput value={row.increaseOverStandard} readOnly />
+          </td>
+        </>
+      ) : null}
     </tr>
   );
 }

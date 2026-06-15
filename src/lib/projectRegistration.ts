@@ -64,6 +64,36 @@ export type ProjectCategoryResponse = {
   categories: ProjectRegistrationMasterItem[];
 };
 
+/** Canonicalize construction type labels (`New/Upcoming` vs `New / Upcoming`). */
+export function normalizeConstructionTypeLabel(value: string): string {
+  return value.replace(/\s*\/\s*/g, " / ").trim();
+}
+
+/** Whether a rating system's allowed `type` values include the selected construction type. */
+export function isRatingConstructionTypeCompatible(
+  allowedTypes: string[] | undefined,
+  constructionType: string,
+): boolean {
+  if (!constructionType) {
+    return true;
+  }
+  if (!allowedTypes?.length) {
+    return true;
+  }
+
+  const selected = normalizeConstructionTypeLabel(constructionType);
+  return allowedTypes.some((item) => {
+    const allowed = normalizeConstructionTypeLabel(item);
+    if (allowed === selected) {
+      return true;
+    }
+    if (allowed === "New / Upcoming and Existing") {
+      return selected === "New / Upcoming" || selected === "Existing";
+    }
+    return false;
+  });
+}
+
 export type ProjectCategoryRatingSystem = {
   id: number;
   categoryId: number;

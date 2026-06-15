@@ -45,7 +45,7 @@ export const ANNEXURE_BLADE_ROUTES = [
     "subtab": "annex_wc_four",
     "version": "3",
     "bladeInclude": ".rating.annexV1.annexFour",
-    "ratingTypeId5Only": true,
+    "ratingTypeId5Only": false,
     "ratingTypeExclude5": false
   },
   {
@@ -61,7 +61,7 @@ export const ANNEXURE_BLADE_ROUTES = [
     "subtab": "annexure_master_material",
     "version": "3",
     "bladeInclude": ".rating.greenhomes.annexMasterMaterial",
-    "ratingTypeId5Only": true,
+    "ratingTypeId5Only": false,
     "ratingTypeExclude5": false
   },
   {

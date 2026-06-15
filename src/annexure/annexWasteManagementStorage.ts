@@ -54,12 +54,37 @@ function loadMaterialSources(form: CertificationFormResponse, schema: AnnexureSc
   const src = schema.wasteManagementLayout?.sourceAnnex;
   const tab = src?.tab ?? "material_resources";
   const subtab = src?.subtab ?? "annexure_master_material";
+  const mode = src?.materialSourceMode ?? "subCategory";
+
+  if (mode === "freeText") {
+    const materialField = src?.materialField ?? "one_materials";
+    const materials = parseJsonArray(getParam(form, tab, subtab, materialField));
+    return loadWasteMaterialSourceRows(materials, []);
+  }
+
   const materialField = src?.materialField ?? "sub_category";
   const otherField = src?.otherMaterialField ?? "other_sub_catg";
-  return loadWasteMaterialSourceRows(
-    parseJsonArray(getParam(form, tab, subtab, materialField)),
-    parseJsonArray(getParam(form, tab, subtab, otherField)),
+  const srcTab = src?.tab ?? "material_resources";
+  const srcSubtab = src?.subtab ?? "annexure_master_material";
+  const rows = loadWasteMaterialSourceRows(
+    parseJsonArray(getParam(form, srcTab, srcSubtab, materialField)),
+    parseJsonArray(getParam(form, srcTab, srcSubtab, otherField)),
   );
+  const rowCountField = src?.rowCountField;
+  if (!rowCountField) return rows;
+
+  const countLen = parseJsonArray(getParam(form, srcTab, srcSubtab, rowCountField)).length;
+  if (countLen <= rows.length) return rows;
+
+  const padded = [...rows];
+  while (padded.length < countLen) {
+    padded.push({
+      sourceIndex: padded.length + 1,
+      sub_category: "",
+      other_sub_catg: "",
+    });
+  }
+  return padded;
 }
 
 export function hydrateWasteManagementAnnex(
@@ -69,6 +94,7 @@ export function hydrateWasteManagementAnnex(
   subtab: string,
 ): WasteManagementState {
   const minRows = schema.wasteManagementLayout?.minRows ?? 5;
+  const materialOptions = schema.wasteManagementLayout?.materialOptions ?? {};
   const sources = loadMaterialSources(form, schema);
 
   const saved: Record<(typeof ROW_PARAMS)[number], string[]> = {} as Record<
@@ -87,7 +113,7 @@ export function hydrateWasteManagementAnnex(
     savedMaterial[p] = parseJsonArray(getParam(form, tab, subtab, p));
   }
 
-  const emptyRows = mergeWasteRowsFromSource(sources, [], minRows);
+  const emptyRows = mergeWasteRowsFromSource(sources, [], minRows, materialOptions);
   const rows = emptyRows.map((base, idx) => {
     const sub_category =
       savedMaterial.sub_category.length > idx ? savedMaterial.sub_category[idx] : base.sub_category;
@@ -99,11 +125,14 @@ export function hydrateWasteManagementAnnex(
       ...base,
       sub_category,
       other_sub_catg,
-      material_description: materialLabelFromSource({
-        sourceIndex: base.sourceIndex,
-        sub_category,
-        other_sub_catg,
-      }),
+      material_description: materialLabelFromSource(
+        {
+          sourceIndex: base.sourceIndex,
+          sub_category,
+          other_sub_catg,
+        },
+        materialOptions,
+      ),
       generated: saved.generated[idx] ?? "",
       generated_proj: saved.generated_proj[idx] ?? "",
       reused: saved.reused[idx] ?? "",

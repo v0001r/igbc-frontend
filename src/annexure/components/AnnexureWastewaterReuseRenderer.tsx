@@ -167,6 +167,10 @@ export function AnnexureWastewaterReuseRenderer({
 
   return (
     <div className="space-y-6">
+      <div className="rounded-t-xl border border-b-0 border-border bg-ocean/10 px-4 py-3">
+        <h2 className="text-base font-semibold text-ocean">{schema.title}</h2>
+      </div>
+      <div className="space-y-6 rounded-b-xl border border-border bg-card p-4 shadow-sm">
       <div className="overflow-x-auto rounded-md border border-border">
         <table className="w-full min-w-[480px] border-collapse text-sm">
           <thead>
@@ -264,6 +268,7 @@ export function AnnexureWastewaterReuseRenderer({
             </tr>
           </tfoot>
         </table>
+      </div>
       </div>
     </div>
   );

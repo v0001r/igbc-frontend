@@ -16,9 +16,10 @@ const entries = [];
 let m;
 while ((m = re.exec(blade)) !== null) {
   const line = blade.slice(m.index, m.index + 400);
+  const elseifLine = line.split("\n")[0] ?? line;
   const includeMatch = line.match(/@include\(FRONTEND_THEME_NAME\s*\.\s*'([^']+)'\)/);
-  const rating5 = line.includes("rating_type[0] == 5");
-  const ratingNot5 = line.includes("rating_type[0] != 5");
+  const rating5 = elseifLine.includes("rating_type[0] == 5");
+  const ratingNot5 = elseifLine.includes("rating_type[0] != 5");
   entries.push({
     tab: m[1],
     subtab: m[2],
