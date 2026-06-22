@@ -1,4 +1,4 @@
-import { FolderOpen, LayoutDashboard } from "lucide-react";
+import { LayoutDashboard } from "lucide-react";
 import type { PortalSidebarConfig } from "./portalTypes";
 
 export const staffLeadNavConfig: PortalSidebarConfig = {
@@ -6,24 +6,11 @@ export const staffLeadNavConfig: PortalSidebarConfig = {
   brandSubtitle: "Green Building Portal",
   dashboardItem: {
     key: "lead",
-    label: "Dashboard",
+    label: "Assignments",
     path: "/staff/lead",
     icon: LayoutDashboard,
   },
-  sections: [
-    {
-      key: "workflow",
-      label: "Workflow",
-      children: [
-        {
-          key: "assignments",
-          label: "My Assignments",
-          path: "/staff/assignments",
-          icon: FolderOpen,
-        },
-      ],
-    },
-  ],
+  sections: [],
 };
 
 export const staffNavConfig: PortalSidebarConfig = {
@@ -51,7 +38,7 @@ export const tpaNavConfig: PortalSidebarConfig = {
 };
 
 export const staffPageTitles: Record<string, string> = {
-  lead: "Lead Dashboard",
+  lead: "Staff Lead — Project Assignments",
   assignments: "My Assignments",
   dashboard: "Staff Dashboard",
   project: "Project Review",

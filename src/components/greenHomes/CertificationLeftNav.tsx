@@ -10,6 +10,7 @@ type Props = {
   view: WorkspaceView;
   currentTabSlug: string;
   currentSubSlug: string;
+  showCertificate?: boolean;
   onViewChange: (view: WorkspaceView) => void;
   onSectionSelect: (tabSlug: string, subSlug: string) => void;
 };
@@ -25,6 +26,7 @@ export function CertificationLeftNav({
   view,
   currentTabSlug,
   currentSubSlug,
+  showCertificate = true,
   onViewChange,
   onSectionSelect,
 }: Props) {
@@ -51,7 +53,8 @@ export function CertificationLeftNav({
         </div>
 
         <ul className="py-2">
-          {PRIMARY_VIEWS.map(({ id, label, icon: Icon }) => {
+          {PRIMARY_VIEWS.filter((v) => v.id !== "certificate" || showCertificate).map(
+            ({ id, label, icon: Icon }) => {
             const active = view === id;
             return (
               <li key={id}>
@@ -69,7 +72,8 @@ export function CertificationLeftNav({
                 </button>
               </li>
             );
-          })}
+          },
+          )}
         </ul>
 
         <div className="border-t border-border px-4 py-2">

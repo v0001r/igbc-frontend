@@ -454,6 +454,10 @@ export type MyProjectListItem = {
   certificationRejectRemark?: string | null;
   canReapplyCertification?: boolean;
   isCertificationWorkspaceReady?: boolean;
+  isSubmitted?: boolean;
+  isPending?: boolean;
+  workflowCertificateStatus?: string;
+  latestCertificateAction?: { action: string; createdAt: string } | null;
   rejectionType?: "certification" | "registration" | null;
   createdAt?: string;
   updatedAt?: string;

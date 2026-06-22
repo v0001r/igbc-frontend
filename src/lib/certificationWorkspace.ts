@@ -24,6 +24,11 @@ export type CertificationWorkspaceResponse = {
   annexureSchemas?: Record<string, AnnexureSchemaDefinition>;
   isSubmitted?: boolean;
   workflowStatus?: string;
+  isPending?: boolean;
+  certificateStatus?: string;
+  clientReportStatus?: string;
+  pendingCredits?: Array<{ tab: string; subtab: string; pendingPoints: number }>;
+  canViewCertificateTab?: boolean;
   readOnly?: boolean;
   canFinalSubmit?: boolean;
   completion?: {

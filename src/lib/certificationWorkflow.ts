@@ -32,7 +32,22 @@ export type WorkflowAssignee = {
 export type ProjectWorkflowResponse = {
   isSubmitted: boolean;
   workflowStatus: string;
+  reportPhase?: string;
+  clientReportStatus?: string;
+  isPending?: boolean;
+  certificateStatus?: string;
   submittedAt: string | null;
+  submissionCount?: number;
+  reviewCycle?: {
+    id: string;
+    submissionCount: number;
+    cycleStatus: string;
+    totalPendingPoints: number;
+    certificateEligible: boolean;
+  } | null;
+  certificateEligible?: boolean;
+  pendingPointsTotal?: number;
+  blockingCredits?: Array<{ tab: string; subtab: string; pendingPoints: number }>;
   assignedStaff: WorkflowAssignee | null;
   assignedTpa: WorkflowAssignee | null;
   timeline: Array<{
@@ -49,12 +64,52 @@ export type LeadSubmittedProject = {
   igbcProjectId: string;
   projectName: string;
   clientName: string;
+  ownerEmail?: string | null;
+  ownerMobile?: string | null;
+  ownerOrganisation?: string | null;
   ratingType: string;
   ratingTypeId: number | null;
+  city?: string | null;
+  state?: string | null;
+  paymentStatus?: string;
+  paymentMode?: string | null;
   submissionDate: string | null;
   workflowStatus: string;
+  expediteReview?: boolean;
+  certificationTypeLabel?: string | null;
   assignedStaff: { id: string; displayName: string } | null;
+  assignedTpa: { id: string; displayName: string } | null;
+  assignmentFee?: number | null;
+  assignmentCount?: number | null;
 };
+
+export type LeadPanelTab = "registered" | "tpa-coordinator" | "assigned";
+
+export async function fetchLeadRegisteredProjects() {
+  return request<{ items: LeadSubmittedProject[] }>("/projects/lead/registered");
+}
+
+export async function fetchLeadTpaCoordinatorProjects() {
+  return request<{ items: LeadSubmittedProject[] }>("/projects/lead/tpa-coordinator");
+}
+
+export async function fetchLeadAssignedProjects() {
+  return request<{ items: LeadSubmittedProject[] }>("/projects/lead/assigned");
+}
+
+export async function fetchLeadRegistrationView(projectId: number) {
+  return request<Record<string, unknown>>(`/projects/lead/${projectId}/registration-view`);
+}
+
+export async function assignTeamToProject(
+  projectId: number,
+  payload: { staffId: string; tpaId: string; fee: number; count: number },
+) {
+  return request<{ message: string }>(`/projects/${projectId}/assign-team`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
 
 export async function finalSubmitProject(projectId: string) {
   return request<{ message: string; isSubmitted: boolean; workflowStatus: string }>(
@@ -102,6 +157,9 @@ export async function fetchLeadDashboardStats() {
     submittedProjects: number;
     unassignedStaff: number;
     assignedStaff: number;
+    registeredProjects?: number;
+    tpaCoordinatorQueue?: number;
+    fullyAssigned?: number;
   }>("/dashboard/lead");
 }
 

@@ -32,14 +32,20 @@ import { fieldsControlledBy, isControlChecked, isFieldVisible } from "@/lib/fiel
 import { createFieldValueContext, resolveFieldValue, shouldPersistField } from "@/lib/ratingFieldValue";
 import { RatingDataIndex } from "@/lib/ratingDataIndex";
 import { finalSubmitProject } from "@/lib/certificationWorkflow";
-import { ChevronLeft, FileBadge, Loader2 } from "lucide-react";
+import { ChevronLeft, Loader2 } from "lucide-react";
 import { ProjectWorkflowTimeline } from "@/components/greenHomes/ProjectWorkflowTimeline";
+import { ClientReportPanel } from "@/components/review/ClientReportPanel";
+import { CertificateWorkflowPanel } from "@/components/review/CertificateWorkflowPanel";
 
 type Props = {
   projectId: string;
   forceReadOnly?: boolean;
   /** When true, renders inside portal layout without client DashboardLayout wrapper. */
   embedded?: boolean;
+  /** Hide View Certificate nav (e.g. TPA reviewers). */
+  hideCertificateTab?: boolean;
+  /** Rendered below the certification section (e.g. TPA review form). */
+  renderAfterSection?: (tab: string, subtab: string) => ReactNode;
 };
 
 function WorkspaceShell({ embedded, children }: { embedded?: boolean; children: ReactNode }) {
@@ -58,6 +64,8 @@ export function GreenHomesProjectWorkspace({
   projectId,
   forceReadOnly = false,
   embedded = false,
+  hideCertificateTab = false,
+  renderAfterSection,
 }: Props) {
   const [workspace, setWorkspace] = useState<CertificationWorkspaceResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -75,6 +83,21 @@ export function GreenHomesProjectWorkspace({
   const annexSaveRef = useRef<AnnexureRendererHandle | null>(null);
 
   const readOnly = forceReadOnly || workspace?.readOnly === true;
+
+  const pendingCredits = workspace?.pendingCredits ?? [];
+  const sectionReadOnly =
+    readOnly &&
+    !pendingCredits.some((c) => c.tab === currentTab && c.subtab === currentSubtab);
+
+  const showCertificateNav = workspace?.canViewCertificateTab === true && !hideCertificateTab;
+  const showReportOnOverview =
+    workspace?.isSubmitted === true && workspace?.clientReportStatus === "pending";
+
+  useEffect(() => {
+    if (view === "certificate" && workspace && !workspace.canViewCertificateTab) {
+      setView("overview");
+    }
+  }, [view, workspace?.canViewCertificateTab]);
 
   const config = workspace?.config;
   const formState = workspace?.form ?? null;
@@ -301,7 +324,7 @@ export function GreenHomesProjectWorkspace({
   }, [projectId, loadWorkspace]);
 
   const persistForm = useCallback(async () => {
-    if (!formState || readOnly) return;
+    if (!formState || sectionReadOnly) return;
     setSaving(true);
     try {
       const saveValues = { ...sectionValues, ...localValues };
@@ -357,7 +380,7 @@ export function GreenHomesProjectWorkspace({
     localValues,
     formState,
     setFormState,
-    readOnly,
+    sectionReadOnly,
   ]);
 
   const canGoPrevious = useMemo(() => {
@@ -428,6 +451,7 @@ export function GreenHomesProjectWorkspace({
           view={view}
           currentTabSlug={currentTab}
           currentSubSlug={currentSubtab}
+          showCertificate={showCertificateNav}
           onViewChange={setView}
           onSectionSelect={goToSection}
         />
@@ -453,15 +477,46 @@ export function GreenHomesProjectWorkspace({
             </div>
           ) : null}
 
-          {workspace.isSubmitted ? (
+          {workspace.isSubmitted && !workspace.isPending ? (
             <div className="mb-4 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
               This project has been final submitted and is read-only.
+            </div>
+          ) : null}
+
+          {workspace.isSubmitted && workspace.isPending ? (
+            <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+              <p className="font-medium">Pending credits require updates</p>
+              <p className="mt-1 text-xs">
+                Only sections with pending points can be edited. Update those credits, then the
+                coordinator will review again.
+              </p>
+              {pendingCredits.length > 0 ? (
+                <ul className="mt-2 list-disc pl-5 text-xs">
+                  {pendingCredits.map((c) => (
+                    <li key={`${c.tab}-${c.subtab}`}>
+                      <button
+                        type="button"
+                        className="text-primary underline"
+                        onClick={() => goToSection(c.tab, c.subtab)}
+                      >
+                        {c.tab}/{c.subtab}
+                      </button>{" "}
+                      — {c.pendingPoints} pending
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
           ) : null}
 
           {view === "overview" ? (
             <>
               <CertificationOverview projectId={projectId} workspace={workspace} />
+              {showReportOnOverview ? (
+                <div className="mt-4">
+                  <ClientReportPanel projectId={projectId} onUpdated={() => void loadWorkspace()} />
+                </div>
+              ) : null}
               <div className="mt-4">
                 <ProjectWorkflowTimeline projectId={projectId} />
               </div>
@@ -476,14 +531,10 @@ export function GreenHomesProjectWorkspace({
           ) : null}
 
           {view === "certificate" ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card px-8 py-16 text-center shadow-sm">
-              <FileBadge className="mb-4 h-12 w-12 text-ocean/60" />
-              <h2 className="text-lg font-semibold text-foreground">View Certificate</h2>
-              <p className="mt-2 max-w-md text-sm text-muted-foreground">
-                Your certificate will appear here once the project is certified. Complete all credits
-                from the checklist to proceed.
-              </p>
-            </div>
+            <CertificateWorkflowPanel
+              projectId={projectId}
+              onUpdated={() => void loadWorkspace()}
+            />
           ) : null}
 
           {view === "section" ? (
@@ -514,11 +565,13 @@ export function GreenHomesProjectWorkspace({
                   onChange={onFieldChange}
                   onFilesChange={onFilesChange}
                   annexSaveRef={annexSaveRef}
-                  readOnly={readOnly}
+                  readOnly={sectionReadOnly}
                 />
               ) : null}
 
-              {!readOnly ? (
+              {renderAfterSection?.(currentTab, currentSubtab)}
+
+              {!sectionReadOnly ? (
                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
                   <button
                     type="button"
